@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bank App | Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body class="page page-home">
+  <main class="dashboard-shell">
+    <section class="card dashboard-card">
+      <header class="dashboard-header">
+        <div>
+          <p class="eyebrow">Account Overview</p>
+          <h1 id="welcomeText">Welcome, User</h1>
+        </div>
+        <button id="logoutBtn" class="ghost-btn" type="button">Logout</button>
+      </header>
+
+      <section class="balance-panel">
+        <p>Account Balance</p>
+        <h2 id="balanceAmount">Rs. 0.00</h2>
+      </section>
+
+      <section class="action-panel">
+        <label for="amountInput">Amount (INR)</label>
+        <input id="amountInput" type="number" min="1" step="0.01" placeholder="Enter amount">
+
+        <div class="btn-row">
+          <button id="depositBtn" type="button">Deposit</button>
+          <button id="withdrawBtn" type="button" class="danger-btn">Withdraw</button>
+        </div>
+      </section>
+
+      <p id="actionMessage" class="message" aria-live="polite"></p>
+
+      <section class="history-panel">
+        <h3>Recent Transactions</h3>
+        <ul id="txList"></ul>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
