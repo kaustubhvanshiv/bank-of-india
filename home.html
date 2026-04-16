@@ -24,12 +24,33 @@
       </section>
 
       <section class="action-panel">
+        <h3>Deposit / Withdraw</h3>
         <label for="amountInput">Amount (INR)</label>
         <input id="amountInput" type="number" min="1" step="0.01" placeholder="Enter amount">
 
         <div class="btn-row">
           <button id="depositBtn" type="button">Deposit</button>
           <button id="withdrawBtn" type="button" class="danger-btn">Withdraw</button>
+        </div>
+      </section>
+
+      <section class="transfer-panel">
+        <h3>Transfer Money</h3>
+        <label for="recipientInput">Recipient Name</label>
+        <input id="recipientInput" type="text" placeholder="Enter recipient name">
+
+        <label for="transferAmountInput">Transfer Amount (INR)</label>
+        <input id="transferAmountInput" type="number" min="1" step="0.01" placeholder="Enter transfer amount">
+
+        <button id="transferBtn" type="button" class="secondary-btn">Transfer</button>
+      </section>
+
+      <section class="utility-panel">
+        <h3>More Actions</h3>
+        <div class="btn-row utility-row">
+          <button id="interestBtn" type="button" class="secondary-btn">Add 2% Interest</button>
+          <button id="undoBtn" type="button" class="ghost-btn">Undo Last</button>
+          <button id="clearHistoryBtn" type="button" class="danger-btn soft-danger-btn">Clear History</button>
         </div>
       </section>
 
