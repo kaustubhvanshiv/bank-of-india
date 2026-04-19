@@ -1,76 +1,37 @@
-const DEMO_USERNAME = 'user123';
-const DEMO_PASSWORD = 'pass123';
+// --- Constants & Keys ---
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = 'admin123';
+const USERS_KEY = 'bankUsersData';
+const ADMIN_SESSION_KEY = 'adminSession';
+const LAST_GLOBAL_KEY = 'lastGlobalAction'; // Store info for undoing
 
-const BALANCE_KEY = 'bankBalance';
-const SESSION_KEY = 'isLoggedIn';
-const USER_KEY = 'loggedInUser';
-const HISTORY_KEY = 'transactionHistory';
-const HISTORY_LIMIT = 20;
-const HISTORY_DISPLAY_LIMIT = 5;
-const INTEREST_RATE = 0.02;
-
-function roundToTwo(value) {
-  return Number(value.toFixed(2));
-}
-
-function loginUser(username, password) {
-  if (username === DEMO_USERNAME && password === DEMO_PASSWORD) {
-    localStorage.setItem(SESSION_KEY, 'true');
-    localStorage.setItem(USER_KEY, username);
-    window.location.href = 'home.html';
-    return true;
-  }
-
-  return false;
-}
-
-function isLoggedIn() {
-  return localStorage.getItem(SESSION_KEY) === 'true';
-}
-
-function logoutUser() {
-  localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(USER_KEY);
-  window.location.href = 'index.html';
-}
-
-function getLoggedInUser() {
-  return localStorage.getItem(USER_KEY) || 'User';
-}
-
-function initializeBalance() {
-  const existingBalance = localStorage.getItem(BALANCE_KEY);
-
-  if (existingBalance === null) {
-    localStorage.setItem(BALANCE_KEY, '10000');
+// --- Initialization ---
+function initData() {
+  if (!localStorage.getItem(USERS_KEY)) {
+    // Seed with empty users array, or create a demo user
+    const defaultData = [
+      { username: 'user1', balance: 10000, transactions: [] },
+      { username: 'testuser', balance: 500, transactions: [] }
+    ];
+    localStorage.setItem(USERS_KEY, JSON.stringify(defaultData));
   }
 }
 
-function getCurrentBalance() {
-  return Number(localStorage.getItem(BALANCE_KEY)) || 0;
-}
-
-function setCurrentBalance(newBalance) {
-  localStorage.setItem(BALANCE_KEY, String(newBalance));
-}
-
-function getPositiveAmount(inputId) {
-  const inputElement = document.getElementById(inputId);
-  const value = Number(inputElement.value);
-
-  if (!Number.isFinite(value) || value <= 0) {
-    return { valid: false, amount: 0 };
+// --- LocalStorage Helpers ---
+function getUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+  } catch (e) {
+    return [];
   }
-
-  return { valid: true, amount: roundToTwo(value) };
 }
 
-function clearInput(inputId) {
-  const inputElement = document.getElementById(inputId);
+function saveUsers(users) {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
 
-  if (inputElement) {
-    inputElement.value = '';
-  }
+function roundToTwo(num) {
+  return Math.round((num + Number.EPSILON) * 100) / 100;
 }
 
 function formatCurrency(amount) {
@@ -81,349 +42,477 @@ function formatCurrency(amount) {
   }).format(amount);
 }
 
-function updateBalance() {
-  const balanceElement = document.getElementById('balanceAmount');
+// Transaction factory
+function createTxRecord(type, amount, balanceAfter, details = '') {
+  return {
+    type,
+    amount: roundToTwo(amount),
+    balanceAfter: roundToTwo(balanceAfter),
+    details,
+    timestamp: Date.now()
+  };
+}
 
-  if (balanceElement) {
-    balanceElement.textContent = formatCurrency(getCurrentBalance());
+// --- Authentication ---
+function loginAdmin(username, password) {
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    localStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    localStorage.setItem('role', 'admin');
+    window.location.href = 'home.html';
+    return true;
+  }
+  return false;
+}
+
+function logoutAdmin() {
+  localStorage.removeItem(ADMIN_SESSION_KEY);
+  localStorage.removeItem('role');
+  window.location.href = 'index.html';
+}
+
+function isAdminLoggedIn() {
+  return localStorage.getItem(ADMIN_SESSION_KEY) === 'true';
+}
+
+function showMessage(id, text, type) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.textContent = text;
+    el.className = `message ${type}`;
+    setTimeout(() => { if(el.textContent===text) el.textContent=''; el.className='message'; }, 3000);
   }
 }
 
-function updateWelcomeMessage() {
-  const welcomeElement = document.getElementById('welcomeText');
+// --- UI Logic: Navigation ---
+function setupNavigation() {
+  const menuItems = document.querySelectorAll('.sidebar-menu li[data-target]');
+  const sections = document.querySelectorAll('.section');
+  
+  menuItems.forEach(item => {
+    item.addEventListener('click', () => {
+      // Update active menu item
+      menuItems.forEach(m => m.classList.remove('active'));
+      item.classList.add('active');
+      
+      // Update active section
+      const target = item.dataset.target;
+      sections.forEach(sec => sec.classList.remove('active'));
+      document.getElementById(target).classList.add('active');
 
-  if (welcomeElement) {
-    welcomeElement.textContent = `Welcome, ${getLoggedInUser()}`;
+      // Refresh specific views
+      if(target === 'users-section') renderUsersTable();
+      if(target === 'transactions-section') {
+        populateUserFilter();
+        renderAllTransactions();
+      }
+      if(target === 'dashboard-section') renderDashboard();
+    });
+  });
+}
+
+// --- Time System ---
+function updateSystemTime() {
+  const timeEl = document.getElementById('systemTime');
+  if (timeEl) {
+    timeEl.textContent = new Date().toLocaleString('en-IN');
   }
 }
 
-function getHistory() {
-  const rawHistory = localStorage.getItem(HISTORY_KEY);
+// --- Dashboard ---
+function renderDashboard() {
+  const users = getUsers();
+  const statUsers = document.getElementById('stat-users');
+  const statFunds = document.getElementById('stat-funds');
+  const statTxs = document.getElementById('stat-txs');
+  
+  if(!statUsers) return;
 
-  if (!rawHistory) {
-    return [];
+  let totalFunds = 0;
+  let allTxs = [];
+  
+  users.forEach(u => {
+    totalFunds += u.balance;
+    if(u.transactions) {
+      u.transactions.forEach(tx => {
+        allTxs.push({ ...tx, username: u.username });
+      });
+    }
+  });
+
+  allTxs.sort((a,b) => b.timestamp - a.timestamp);
+
+  statUsers.textContent = users.length;
+  statFunds.textContent = formatCurrency(totalFunds);
+  statTxs.textContent = allTxs.length;
+
+  const dashTableBody = document.querySelector('#dash-tx-table tbody');
+  dashTableBody.innerHTML = '';
+  
+  allTxs.slice(0, 10).forEach(tx => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(tx.timestamp).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</td>
+      <td><strong>${tx.username}</strong></td>
+      <td>${tx.type}</td>
+      <td style="color:${tx.amount<0 && tx.type!=='Deposit'? 'var(--danger)':'var(--success)'}">${tx.amount<0 ? '-':'+'}${formatCurrency(Math.abs(tx.amount))}</td>
+    `;
+    dashTableBody.appendChild(tr);
+  });
+}
+
+// --- Users Management ---
+let selectedUserForAction = null;
+
+function renderUsersTable(filterText = '') {
+  const users = getUsers();
+  const tbody = document.querySelector('#users-table tbody');
+  if(!tbody) return;
+
+  tbody.innerHTML = '';
+  
+  const filteredUsers = filterText 
+    ? users.filter(u => u.username.toLowerCase().includes(filterText.toLowerCase()))
+    : users;
+
+  filteredUsers.forEach(u => {
+    const tr = document.createElement('tr');
+    const txCount = u.transactions ? u.transactions.length : 0;
+    tr.innerHTML = `
+      <td><strong>${u.username}</strong></td>
+      <td>${formatCurrency(u.balance)}</td>
+      <td>${txCount}</td>
+      <td>
+        <button class="ghost-btn manage-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px;">Manage Balance</button>
+        <button class="danger-btn del-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Attach events
+  document.querySelectorAll('.manage-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => openManageModal(e.target.dataset.username));
+  });
+  document.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => openDeleteModal(e.target.dataset.username));
+  });
+}
+
+// --- Modals ---
+function openAddUserModal() {
+  document.getElementById('newUsername').value = '';
+  document.getElementById('newInitialBalance').value = '';
+  document.getElementById('addUserMsg').textContent = '';
+  document.getElementById('addUserModal').classList.add('active');
+}
+
+function closeAddUserModal() {
+  document.getElementById('addUserModal').classList.remove('active');
+}
+
+function addUser() {
+  const uname = document.getElementById('newUsername').value.trim();
+  const initialBal = Number(document.getElementById('newInitialBalance').value) || 0;
+
+  if (!uname) {
+    showMessage('addUserMsg', 'Username is required', 'error');
+    return;
+  }
+
+  const users = getUsers();
+  if (users.find(u => u.username === uname)) {
+    showMessage('addUserMsg', 'Username already exists', 'error');
+    return;
+  }
+
+  users.push({
+    username: uname,
+    balance: roundToTwo(initialBal),
+    transactions: initialBal > 0 ? [createTxRecord('Deposit', initialBal, initialBal, 'Initial Deposit')] : []
+  });
+
+  saveUsers(users);
+  closeAddUserModal();
+  renderUsersTable(document.getElementById('searchUserInput').value);
+  renderDashboard();
+}
+
+function openManageModal(username) {
+  selectedUserForAction = username;
+  const users = getUsers();
+  const user = users.find(u => u.username === username);
+  if(!user) return;
+
+  document.getElementById('manageUsername').textContent = user.username;
+  document.getElementById('manageCurrentBalance').textContent = formatCurrency(user.balance);
+  document.getElementById('manageAmount').value = '';
+  document.getElementById('manageUserMsg').textContent = '';
+  document.getElementById('manageBalanceModal').classList.add('active');
+}
+
+function closeManageModal() {
+  document.getElementById('manageBalanceModal').classList.remove('active');
+  selectedUserForAction = null;
+}
+
+function applyManageUser() {
+  if(!selectedUserForAction) return;
+  const action = document.getElementById('manageAction').value;
+  let amount = Number(document.getElementById('manageAmount').value);
+
+  if(!amount || amount < 0) {
+    if(action !== 'set' || amount < 0) {
+      showMessage('manageUserMsg', 'Valid amount is required', 'error');
+      return;
+    }
+  }
+
+  const users = getUsers();
+  const user = users.find(u => u.username === selectedUserForAction);
+  if(!user) return;
+
+  if (action === 'add') {
+    user.balance = roundToTwo(user.balance + amount);
+    user.transactions.unshift(createTxRecord('Admin Mod', amount, user.balance, 'Admin Added Money'));
+  } else if (action === 'deduct') {
+    if(amount > user.balance) {
+      showMessage('manageUserMsg', 'Insufficient balance for deduction', 'error');
+      return;
+    }
+    user.balance = roundToTwo(user.balance - amount);
+    user.transactions.unshift(createTxRecord('Admin Mod', -amount, user.balance, 'Admin Deducted Money'));
+  } else if (action === 'set') {
+    const diff = amount - user.balance;
+    if(diff !== 0) {
+      user.balance = roundToTwo(amount);
+      user.transactions.unshift(createTxRecord('Admin Mod', diff, user.balance, 'Admin Reset Balance'));
+    }
+  }
+
+  saveUsers(users);
+  closeManageModal();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  renderDashboard();
+}
+
+function openDeleteModal(username) {
+  selectedUserForAction = username;
+  document.getElementById('deleteUsername').textContent = username;
+  document.getElementById('deleteUserModal').classList.add('active');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteUserModal').classList.remove('active');
+  selectedUserForAction = null;
+}
+
+function executeDeleteUser() {
+  if(!selectedUserForAction) return;
+  const users = getUsers();
+  const newUsers = users.filter(u => u.username !== selectedUserForAction);
+  saveUsers(newUsers);
+  closeDeleteModal();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  renderDashboard();
+}
+
+// --- Transactions Display ---
+function populateUserFilter() {
+  const users = getUsers();
+  const filter = document.getElementById('filterUser');
+  if(!filter) return;
+  
+  const currentVal = filter.value;
+  filter.innerHTML = '<option value="ALL">All Users</option>';
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.username;
+    opt.textContent = u.username;
+    filter.appendChild(opt);
+  });
+  if([...filter.options].some(o => o.value === currentVal)) {
+    filter.value = currentVal;
+  }
+}
+
+function renderAllTransactions() {
+  const users = getUsers();
+  const tbody = document.querySelector('#all-transactions-table tbody');
+  if(!tbody) return;
+
+  const fUser = document.getElementById('filterUser').value;
+  const fType = document.getElementById('filterType').value;
+
+  let allTxs = [];
+  users.forEach(u => {
+    if(fUser === 'ALL' || fUser === u.username) {
+      if(u.transactions) {
+        u.transactions.forEach(tx => {
+          if(fType === 'ALL' || fType === tx.type || (fType === 'System' && tx.type === 'System')) {
+             allTxs.push({ ...tx, username: u.username });
+          }
+        });
+      }
+    }
+  });
+
+  allTxs.sort((a,b) => b.timestamp - a.timestamp);
+
+  tbody.innerHTML = '';
+  allTxs.forEach(tx => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(tx.timestamp).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'})}</td>
+      <td><strong>${tx.username}</strong></td>
+      <td>${tx.type}</td>
+      <td style="color:${tx.amount<0 && tx.type!=='Deposit'? 'var(--danger)':'var(--success)'}">${formatCurrency(tx.amount)}</td>
+      <td>${tx.details}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// --- System Controls ---
+function applyGlobalInterest() {
+  const users = getUsers();
+  if(users.length === 0) {
+    showMessage('controlMessage', 'No users to add interest to.', 'error');
+    return;
+  }
+
+  let totalInterestGiven = 0;
+  
+  const snapshot = JSON.stringify(users); // For undo
+
+  users.forEach(u => {
+    if(u.balance > 0) {
+      const interest = roundToTwo(u.balance * 0.02);
+      if(interest > 0) {
+        u.balance = roundToTwo(u.balance + interest);
+        u.transactions.unshift(createTxRecord('Interest', interest, u.balance, '+2% Global Interest'));
+        totalInterestGiven += interest;
+      }
+    }
+  });
+
+  saveUsers(users);
+  
+  localStorage.setItem(LAST_GLOBAL_KEY, JSON.stringify({
+    type: 'INTEREST',
+    previousState: snapshot
+  }));
+
+  showMessage('controlMessage', `Applied +2% Interest. Total disbursed: ${formatCurrency(totalInterestGiven)}`, 'success');
+  renderDashboard();
+}
+
+function undoGlobalAction() {
+  const lastAction = localStorage.getItem(LAST_GLOBAL_KEY);
+  if(!lastAction) {
+    showMessage('controlMessage', 'No system action available to undo.', 'error');
+    return;
   }
 
   try {
-    const parsed = JSON.parse(rawHistory);
-
-    if (!Array.isArray(parsed)) {
-      return [];
+    const actionData = JSON.parse(lastAction);
+    if(actionData.previousState) {
+      saveUsers(JSON.parse(actionData.previousState));
+      localStorage.removeItem(LAST_GLOBAL_KEY);
+      showMessage('controlMessage', 'Successfully reversed the last global action.', 'success');
+      renderDashboard();
     }
+  } catch(e) {
+    showMessage('controlMessage', 'Failed to undo action. Data corrupted.', 'error');
+  }
+}
 
-    return parsed.map((item) => {
-      if (typeof item === 'string') {
-        return {
-          type: 'Transaction',
-          amount: 0,
-          delta: 0,
-          balanceAfter: getCurrentBalance(),
-          timestamp: Date.now(),
-          note: item,
-          undoable: false
-        };
-      }
-
-      return {
-        type: item.type || 'Transaction',
-        amount: Number(item.amount) || 0,
-        delta: Number(item.delta) || 0,
-        balanceAfter: Number(item.balanceAfter) || 0,
-        timestamp: Number(item.timestamp) || Date.now(),
-        note: item.note || '',
-        undoable: item.undoable !== false
-      };
+function purgeData() {
+  if(confirm("CRITICAL: You are about to clear transaction histories for EVERY user. This cannot be reversed. Proceed?")) {
+    const users = getUsers();
+    users.forEach(u => {
+      u.transactions = [];
     });
-  } catch (error) {
-    return [];
+    saveUsers(users);
+    showMessage('controlMessage', 'All transaction history cleared across the system.', 'success');
+    renderDashboard();
+    
+    // Clear undo stack as history is destroyed
+    localStorage.removeItem(LAST_GLOBAL_KEY);
   }
 }
 
-function saveHistory(history) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_LIMIT)));
-}
-
-function addTransaction(type, amount, delta, balanceAfter, note = '', undoable = true) {
-  const history = getHistory();
-  history.unshift({
-    type,
-    amount,
-    delta,
-    balanceAfter,
-    timestamp: Date.now(),
-    note,
-    undoable
-  });
-  saveHistory(history);
-}
-
-function formatTransactionEntry(entry) {
-  if (entry.note && entry.amount === 0) {
-    return entry.note;
-  }
-
-  const dateText = new Date(entry.timestamp).toLocaleString('en-IN', {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
-  const detailText = entry.note ? ` (${entry.note})` : '';
-
-  return `${entry.type}: ${formatCurrency(entry.amount)} | Balance: ${formatCurrency(entry.balanceAfter)}${detailText} | ${dateText}`;
-}
-
-function renderTransactionHistory() {
-  const txList = document.getElementById('txList');
-
-  if (!txList) {
-    return;
-  }
-
-  const history = getHistory();
-  txList.innerHTML = '';
-
-  if (history.length === 0) {
-    const emptyState = document.createElement('li');
-    emptyState.textContent = 'No transactions yet.';
-    txList.appendChild(emptyState);
-    return;
-  }
-
-  history.slice(0, HISTORY_DISPLAY_LIMIT).forEach((item) => {
-    const listItem = document.createElement('li');
-    listItem.textContent = formatTransactionEntry(item);
-    txList.appendChild(listItem);
-  });
-}
-
-function showMessage(elementId, text, type) {
-  const messageElement = document.getElementById(elementId);
-
-  if (!messageElement) {
-    return;
-  }
-
-  messageElement.textContent = text;
-  messageElement.className = `message ${type}`;
-}
-
-function refreshDashboard() {
-  updateBalance();
-  renderTransactionHistory();
-}
-
-function depositAmount() {
-  const { valid, amount } = getPositiveAmount('amountInput');
-
-  if (!valid) {
-    showMessage('actionMessage', 'Enter a valid positive amount.', 'error');
-    return;
-  }
-
-  const newBalance = roundToTwo(getCurrentBalance() + amount);
-  setCurrentBalance(newBalance);
-  addTransaction('Deposit', amount, amount, newBalance);
-  refreshDashboard();
-
-  clearInput('amountInput');
-  showMessage('actionMessage', 'Deposit successful.', 'success');
-}
-
-function withdrawAmount() {
-  const { valid, amount } = getPositiveAmount('amountInput');
-
-  if (!valid) {
-    showMessage('actionMessage', 'Enter a valid positive amount.', 'error');
-    return;
-  }
-
-  const currentBalance = getCurrentBalance();
-
-  if (amount > currentBalance) {
-    showMessage('actionMessage', 'Insufficient balance', 'error');
-    return;
-  }
-
-  const newBalance = roundToTwo(currentBalance - amount);
-  setCurrentBalance(newBalance);
-  addTransaction('Withdraw', amount, -amount, newBalance);
-  refreshDashboard();
-
-  clearInput('amountInput');
-  showMessage('actionMessage', 'Withdrawal successful.', 'success');
-}
-
-function transferAmount() {
-  const recipientName = document.getElementById('recipientInput').value.trim();
-  const { valid, amount } = getPositiveAmount('transferAmountInput');
-
-  if (!recipientName) {
-    showMessage('actionMessage', 'Enter recipient name before transfer.', 'error');
-    return;
-  }
-
-  if (!valid) {
-    showMessage('actionMessage', 'Enter a valid transfer amount.', 'error');
-    return;
-  }
-
-  const currentBalance = getCurrentBalance();
-
-  if (amount > currentBalance) {
-    showMessage('actionMessage', 'Insufficient balance for transfer.', 'error');
-    return;
-  }
-
-  const newBalance = roundToTwo(currentBalance - amount);
-  setCurrentBalance(newBalance);
-  addTransaction('Transfer', amount, -amount, newBalance, `To ${recipientName}`);
-  refreshDashboard();
-
-  clearInput('recipientInput');
-  clearInput('transferAmountInput');
-  showMessage('actionMessage', `Transfer to ${recipientName} successful.`, 'success');
-}
-
-function addInterest() {
-  const currentBalance = getCurrentBalance();
-
-  if (currentBalance <= 0) {
-    showMessage('actionMessage', 'Balance must be above zero to add interest.', 'error');
-    return;
-  }
-
-  const interestAmount = roundToTwo(currentBalance * INTEREST_RATE);
-
-  if (interestAmount <= 0) {
-    showMessage('actionMessage', 'Balance too low to calculate interest.', 'error');
-    return;
-  }
-
-  const newBalance = roundToTwo(currentBalance + interestAmount);
-  setCurrentBalance(newBalance);
-  addTransaction('Interest', interestAmount, interestAmount, newBalance, '2% credit');
-  refreshDashboard();
-
-  showMessage('actionMessage', `Interest added: ${formatCurrency(interestAmount)}.`, 'success');
-}
-
-function undoLastTransaction() {
-  const history = getHistory();
-
-  if (history.length === 0) {
-    showMessage('actionMessage', 'No transactions available to undo.', 'error');
-    return;
-  }
-
-  const lastTransaction = history[0];
-
-  if (!lastTransaction.undoable) {
-    showMessage('actionMessage', 'The latest record cannot be undone.', 'error');
-    return;
-  }
-
-  const currentBalance = getCurrentBalance();
-  const reversedBalance = roundToTwo(currentBalance - lastTransaction.delta);
-
-  if (reversedBalance < 0) {
-    showMessage('actionMessage', 'Undo failed due to invalid balance state.', 'error');
-    return;
-  }
-
-  setCurrentBalance(reversedBalance);
-  history.shift();
-  saveHistory(history);
-  refreshDashboard();
-
-  showMessage('actionMessage', `Last transaction (${lastTransaction.type}) has been undone.`, 'success');
-}
-
-function clearHistory() {
-  saveHistory([]);
-  renderTransactionHistory();
-
-  showMessage('actionMessage', 'Transaction history cleared.', 'success');
-}
-
+// --- Setup Pages ---
 function setupLoginPage() {
   const loginForm = document.getElementById('loginForm');
+  if (!loginForm) return;
 
-  if (!loginForm) {
-    return;
-  }
-
-  if (isLoggedIn()) {
+  if (isAdminLoggedIn()) {
     window.location.href = 'home.html';
     return;
   }
 
-  loginForm.addEventListener('submit', (event) => {
-    event.preventDefault();
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
 
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value.trim();
-
-    const loginSuccess = loginUser(username, password);
-
-    if (!loginSuccess) {
-      showMessage('loginMessage', 'Invalid credentials', 'error');
+    if (!loginAdmin(u, p)) {
+       // if it's the old 'user123' show special error
+       if(u !== ADMIN_USER && p !== ADMIN_PASS && u !== '') {
+           showMessage('loginMessage', 'Access Denied. Admin privileges required.', 'error');
+       } else {
+           showMessage('loginMessage', 'Invalid Admin Credentials', 'error');
+       }
     }
   });
 }
 
-function setupHomePage() {
-  const homePageElement = document.getElementById('balanceAmount');
+function setupAdminPage() {
+  const dashboardTop = document.getElementById('topbar-title');
+  if (!dashboardTop) return;
 
-  if (!homePageElement) {
-    return;
-  }
-
-  if (!isLoggedIn()) {
+  if (!isAdminLoggedIn()) {
     window.location.href = 'index.html';
     return;
   }
 
-  initializeBalance();
-  updateWelcomeMessage();
-  refreshDashboard();
+  initData();
+  setupNavigation();
+  updateSystemTime();
+  setInterval(updateSystemTime, 1000);
+  renderDashboard();
 
-  const depositButton = document.getElementById('depositBtn');
-  const withdrawButton = document.getElementById('withdrawBtn');
-  const transferButton = document.getElementById('transferBtn');
-  const interestButton = document.getElementById('interestBtn');
-  const undoButton = document.getElementById('undoBtn');
-  const clearHistoryButton = document.getElementById('clearHistoryBtn');
-  const logoutButton = document.getElementById('logoutBtn');
-
-  if (depositButton) {
-    depositButton.addEventListener('click', depositAmount);
+  // Navigation Logic specific to User interactions
+  const searchUserInput = document.getElementById('searchUserInput');
+  if(searchUserInput) {
+    searchUserInput.addEventListener('input', (e) => renderUsersTable(e.target.value));
   }
 
-  if (withdrawButton) {
-    withdrawButton.addEventListener('click', withdrawAmount);
-  }
+  const showAddUserBtn = document.getElementById('showAddUserBtn');
+  if(showAddUserBtn) showAddUserBtn.addEventListener('click', openAddUserModal);
 
-  if (transferButton) {
-    transferButton.addEventListener('click', transferAmount);
-  }
+  document.getElementById('closeAddUserModal')?.addEventListener('click', closeAddUserModal);
+  document.getElementById('confirmAddUserBtn')?.addEventListener('click', addUser);
 
-  if (interestButton) {
-    interestButton.addEventListener('click', addInterest);
-  }
+  document.getElementById('closeManageModal')?.addEventListener('click', closeManageModal);
+  document.getElementById('confirmManageBtn')?.addEventListener('click', applyManageUser);
 
-  if (undoButton) {
-    undoButton.addEventListener('click', undoLastTransaction);
-  }
+  document.getElementById('closeDeleteModal')?.addEventListener('click', closeDeleteModal);
+  document.getElementById('confirmDeleteBtn')?.addEventListener('click', executeDeleteUser);
 
-  if (clearHistoryButton) {
-    clearHistoryButton.addEventListener('click', clearHistory);
-  }
+  document.getElementById('logoutBtn')?.addEventListener('click', logoutAdmin);
 
-  if (logoutButton) {
-    logoutButton.addEventListener('click', logoutUser);
-  }
+  // Filter triggers
+  document.getElementById('filterUser')?.addEventListener('change', renderAllTransactions);
+  document.getElementById('filterType')?.addEventListener('change', renderAllTransactions);
+
+  // Controls triggers
+  document.getElementById('applyInterestBtn')?.addEventListener('click', applyGlobalInterest);
+  document.getElementById('undoGlobalBtn')?.addEventListener('click', undoGlobalAction);
+  document.getElementById('clearAllHistoryBtn')?.addEventListener('click', purgeData);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   setupLoginPage();
-  setupHomePage();
+  setupAdminPage();
 });

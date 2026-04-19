@@ -3,33 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank App | Login</title>
+  <title>Bank of India | Admin Login</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
-<body class="page page-login">
+<body class="page-login">
   <main class="login-shell">
-    <section class="card login-card">
-      <p class="eyebrow">Simple Bank Application</p>
-      <h1>Welcome Back</h1>
-      <p class="subtext">Use the demo credentials to log in and manage your account.</p>
+    <section class="login-card">
+      <div class="logo-container">
+        <!-- SVG Placeholder for Bank Logo -->
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="45" fill="#FFD700" />
+          <text x="50%" y="55%" text-anchor="middle" font-size="32" font-weight="bold" fill="#003A8F" font-family="Arial, sans-serif">BOI</text>
+        </svg>
+      </div>
+      <h1>Bank of India</h1>
+      <p class="subtext">Admin Control Panel</p>
 
       <form id="loginForm" class="stack" novalidate>
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" placeholder="Enter username" required>
+        <label for="username">Admin ID</label>
+        <input id="username" name="username" type="text" placeholder="Enter Admin Username" required>
 
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Enter password" required>
+        <input id="password" name="password" type="password" placeholder="Enter Password" required>
 
-        <button id="loginBtn" type="submit">Login</button>
+        <button id="loginBtn" type="submit">Secure Login</button>
       </form>
 
       <p id="loginMessage" class="message" aria-live="polite"></p>
 
-      <div class="demo-box">
-        <p>Demo Credentials</p>
-        <span>Username: user123</span>
-        <span>Password: pass123</span>
+      <div class="demo-box" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc; border-radius: 4px; font-size: 13px; color: #555;">
+        <p style="margin-bottom: 5px;"><strong>Authorized Personnel Only</strong></p>
+        <span>ID: admin | Password: admin123</span>
       </div>
     </section>
   </main>

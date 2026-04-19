@@ -1,6 +1,6 @@
 ## Current Status
 
-Last updated: 2026-04-17
+Last updated: 2026-04-19
 
 ## Completed
 
@@ -11,7 +11,8 @@ Last updated: 2026-04-17
 5. Interest action (2% credit).
 6. Undo last transaction and clear history actions.
 7. Responsive card-based UI with feedback messaging.
-8. Dockerfile added for Nginx-based static hosting.
+8. Node.js HTTP server added for serving static files on port 5000.
+9. Dockerfile added for Nginx-based static hosting.
 
 ## Data Model (localStorage)
 

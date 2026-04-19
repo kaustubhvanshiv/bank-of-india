@@ -3,64 +3,207 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank App | Dashboard</title>
+  <title>Bank of India | Admin Panel</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
-<body class="page page-home">
-  <main class="dashboard-shell">
-    <section class="card dashboard-card">
-      <header class="dashboard-header">
-        <div>
-          <p class="eyebrow">Account Overview</p>
-          <h1 id="welcomeText">Welcome, User</h1>
+<body class="page-admin">
+  
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 60px; margin: 0 auto 10px;">
+        <circle cx="50" cy="50" r="45" fill="#FFD700" />
+        <text x="50%" y="55%" text-anchor="middle" font-size="32" font-weight="bold" fill="#003A8F" font-family="Arial, sans-serif">BOI</text>
+      </svg>
+      <h3>Admin Panel</h3>
+    </div>
+    <ul class="sidebar-menu" id="sidebarMenu">
+      <li class="active" data-target="dashboard-section">Dashboard</li>
+      <li data-target="users-section">Users</li>
+      <li data-target="transactions-section">Transactions</li>
+      <li data-target="controls-section">System Controls</li>
+      <li id="logoutBtn" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">Logout</li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    <div class="topbar">
+      <h2 id="topbar-title">Dashboard Overview</h2>
+      <div><span id="adminName">Admin</span> | Time: <span id="systemTime"></span></div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard-section" class="section active">
+      <div class="dashboard-cards">
+        <div class="card-stat">
+          <h3>Total System Users</h3>
+          <div class="value" id="stat-users">0</div>
         </div>
-        <button id="logoutBtn" class="ghost-btn" type="button">Logout</button>
-      </header>
-
-      <section class="balance-panel">
-        <p>Account Balance</p>
-        <h2 id="balanceAmount">Rs. 0.00</h2>
-      </section>
-
-      <section class="action-panel">
-        <h3>Deposit / Withdraw</h3>
-        <label for="amountInput">Amount (INR)</label>
-        <input id="amountInput" type="number" min="1" step="0.01" placeholder="Enter amount">
-
-        <div class="btn-row">
-          <button id="depositBtn" type="button">Deposit</button>
-          <button id="withdrawBtn" type="button" class="danger-btn">Withdraw</button>
+        <div class="card-stat">
+          <h3>Total Funds in System</h3>
+          <div class="value" id="stat-funds">₹0.00</div>
         </div>
-      </section>
-
-      <section class="transfer-panel">
-        <h3>Transfer Money</h3>
-        <label for="recipientInput">Recipient Name</label>
-        <input id="recipientInput" type="text" placeholder="Enter recipient name">
-
-        <label for="transferAmountInput">Transfer Amount (INR)</label>
-        <input id="transferAmountInput" type="number" min="1" step="0.01" placeholder="Enter transfer amount">
-
-        <button id="transferBtn" type="button" class="secondary-btn">Transfer</button>
-      </section>
-
-      <section class="utility-panel">
-        <h3>More Actions</h3>
-        <div class="btn-row utility-row">
-          <button id="interestBtn" type="button" class="secondary-btn">Add 2% Interest</button>
-          <button id="undoBtn" type="button" class="ghost-btn">Undo Last</button>
-          <button id="clearHistoryBtn" type="button" class="danger-btn soft-danger-btn">Clear History</button>
+        <div class="card-stat" style="border-color: var(--accent);">
+          <h3>Total Transactions</h3>
+          <div class="value" id="stat-txs">0</div>
         </div>
-      </section>
+      </div>
 
-      <p id="actionMessage" class="message" aria-live="polite"></p>
-
-      <section class="history-panel">
-        <h3>Recent Transactions</h3>
-        <ul id="txList"></ul>
-      </section>
+      <div class="table-container">
+        <h3>Recent System Activity</h3>
+        <table id="dash-tx-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Type</th>
+              <th>Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
+
+    <!-- Users Section -->
+    <section id="users-section" class="section">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
+        <input type="text" id="searchUserInput" placeholder="Search by username..." style="max-width: 300px;">
+        <button id="showAddUserBtn" class="accent-btn">+ Create User</button>
+      </div>
+      
+      <div class="table-container">
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Current Balance (₹)</th>
+              <th>Tx Count</th>
+              <th style="width: 15rem;">Admin Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Transactions Section -->
+    <section id="transactions-section" class="section">
+      <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+        <select id="filterUser" style="max-width: 250px;">
+          <option value="ALL">All Users</option>
+        </select>
+        <select id="filterType" style="max-width: 250px;">
+          <option value="ALL">All Types</option>
+          <option value="Deposit">Deposit</option>
+          <option value="Withdraw">Withdraw</option>
+          <option value="Transfer">Transfer</option>
+          <option value="Interest">Interest</option>
+          <option value="Admin Mod">Admin Mod</option>
+          <option value="System">System</option>
+        </select>
+      </div>
+
+      <div class="table-container">
+        <table id="all-transactions-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Type</th>
+              <th>Amount (₹)</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Controls Section -->
+    <section id="controls-section" class="section">
+      <div class="controls-grid">
+        <div class="control-card">
+          <h3>Apply Global Interest</h3>
+          <p>Credit +2% interest to all user accounts based on their current balance iteratively.</p>
+          <button id="applyInterestBtn" class="accent-btn" style="width:100%;">Execute to All Users</button>
+        </div>
+        <div class="control-card">
+          <h3>System Transaction Reversal</h3>
+          <p>Undo the last global system transaction across all users.</p>
+          <button id="undoGlobalBtn" class="accent-btn" style="width:100%;">Undo Last Action</button>
+        </div>
+        <div class="control-card" style="border-left: 4px solid var(--danger);">
+          <h3>Purge Data</h3>
+          <p>Clear all transaction history for ALL users. This cannot be undone.</p>
+          <button id="clearAllHistoryBtn" class="danger-btn" style="width:100%;">Clear All History</button>
+        </div>
+      </div>
+      <p id="controlMessage" class="message" style="text-align: center; margin-top:20px; font-size: 16px;"></p>
+    </section>
+
   </main>
+
+  <!-- Modals -->
+  <!-- Add User Modal -->
+  <div id="addUserModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Create New User</h3>
+      <div class="stack">
+        <label>Username</label>
+        <input type="text" id="newUsername" placeholder="Enter username">
+        <label>Initial Balance (₹)</label>
+        <input type="number" id="newInitialBalance" min="0" placeholder="0">
+        <p id="addUserMsg" class="message"></p>
+        <div class="btn-group">
+          <button class="ghost-btn" id="closeAddUserModal">Cancel</button>
+          <button id="confirmAddUserBtn">Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage User Balance Modal -->
+  <div id="manageBalanceModal" class="modal-overlay">
+    <div class="modal">
+      <h3 id="manageModalTitle">Manage Balance</h3>
+      <div class="stack">
+        <p>User: <strong id="manageUsername"></strong></p>
+        <p>Current Balance: <strong id="manageCurrentBalance"></strong></p>
+        
+        <label>Action</label>
+        <select id="manageAction">
+          <option value="add">Add Money</option>
+          <option value="deduct">Deduct Money</option>
+          <option value="set">Set Balance</option>
+        </select>
+        
+        <label>Amount (₹)</label>
+        <input type="number" id="manageAmount" min="0" placeholder="Amount">
+        <p id="manageUserMsg" class="message"></p>
+        
+        <div class="btn-group">
+          <button class="ghost-btn" id="closeManageModal">Cancel</button>
+          <button id="confirmManageBtn">Apply Change</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete User Confirm Modal -->
+  <div id="deleteUserModal" class="modal-overlay">
+    <div class="modal" style="border-top: 4px solid var(--danger);">
+      <h3 style="color:var(--danger);">Delete User</h3>
+      <div class="stack">
+        <p>Are you sure you want to delete <strong id="deleteUsername"></strong>?</p>
+        <p>This will remove their account and all transaction history permanently.</p>
+        <div class="btn-group">
+          <button class="ghost-btn" id="closeDeleteModal">Cancel</button>
+          <button id="confirmDeleteBtn" class="danger-btn">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
