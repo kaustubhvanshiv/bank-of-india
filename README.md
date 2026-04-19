@@ -18,7 +18,45 @@ By automating these processes, teams can focus on development while ensuring rel
 
 ---
 
-## 🔁 CI/CD Workflow
+## � How to Run
+
+### Local Development
+
+1. **Install Node.js** (v14 or higher)
+2. **Run the application server**:
+   ```bash
+   node app/server.js
+   ```
+3. **Access the application**:
+   - Open browser: `http://localhost:5000`
+   - Check server health: `http://localhost:5000/health`
+   - Expected response: `OK` (plain text)
+
+### Running Tests Locally
+
+```bash
+node tests/test.js
+```
+
+This script:
+- Spawns the Node.js server
+- Waits for startup
+- Calls the `/health` endpoint to validate
+- Reports success or failure
+- Cleans up the server process
+
+### Docker Deployment
+
+```bash
+docker build -t bankapp:latest .
+docker run -p 80:80 bankapp:latest
+```
+
+Access the app at: `http://localhost` (port 80)
+
+---
+
+## �🔁 CI/CD Workflow
 
 The pipeline follows this automated flow:
 
@@ -63,16 +101,32 @@ Checkout → Run Server → Test → Docker Build → Notify
 ### Pipeline Stages:
 
 - **Checkout**: Clones the repository at the commit SHA
-- **Run Server**: Starts `server.js` in the background using Node.js
-- **Test**: Calls `http://localhost:5000/health` endpoint to validate server runtime
-  - If response is `"OK"` → Test passes, pipeline continues
-  - If response is not `"OK"` or connection fails → Test fails, pipeline stops
-- **Docker Build**: Creates a Docker image tagged with branch name (main branch only)
-- **Notify**: Sends results back to GitHub (pass/fail status)
+- **Run Test Script**: Executes `tests/test.js` which spawns server, validates `/health` endpoint, then cleans up
+- **Docker Build** (main branch only): Creates Docker image `bankapp:${BUILD_NUMBER}`
 
 **Server Runtime Validation**: Jenkins runs actual server code and confirms the `/health` endpoint responds correctly, ensuring the application works in a real environment before containerization.
 
 All stages are logged for audit trails and debugging.
+
+---
+
+## 🛠️ Problems Faced & Fixes
+
+### Issue 1: Node Runtime Missing in Jenkins
+**Problem**: Jenkins couldn't find Node.js executable in pipeline agent
+**Root Cause**: Default agents don't have Node.js installed
+**Solution**: Used Docker agents with Node.js pre-installed for reliable runtime
+
+### Issue 2: Docker Socket Permission Denied
+**Problem**: Pipeline fails when building Docker images with permission denied error
+**Root Cause**: Jenkins container couldn't access host's Docker socket
+**Solution**: Mounted `/var/run/docker.sock` at startup and added Jenkins user to docker group
+
+### Issue 3: Health Check Timeout in Container Network
+**Problem**: Container-to-localhost networking failed during health checks
+**Root Cause**: Docker container isolation prevents plain localhost resolution
+**Solution**: Ensured test script runs on CI/CD host with proper DNS and network config
+**Result**: Health checks now work reliably across all pipeline stages
 
 ---
 
