@@ -8,6 +8,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
 # Logs
 *.log
 npm-debug.log*
