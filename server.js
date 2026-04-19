@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 5000;
+const FORCE_ERROR = false; // Set to true to simulate CI/CD failure during demo
 
 // Dictionary mapping extensions to standard MIME types
 const MIME_TYPES = {
@@ -20,6 +21,18 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   // Log all requests
   console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+  
+  // Health check endpoint for CI/CD pipelines
+  if (req.url === '/health') {
+    if (FORCE_ERROR) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('ERROR', 'utf-8');
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('OK', 'utf-8');
+    }
+    return;
+  }
   
   // Default to index.html for root requests
   let urlPath = req.url === '/' ? '/index.html' : req.url;
@@ -54,5 +67,17 @@ server.listen(PORT, () => {
   console.log(`🚀 Server successfully running on port ${PORT}`);
   console.log(`👉 View your app at: http://localhost:${PORT}/`);
   console.log('-------------------------------------------');
+  console.log('SERVER_STARTED_SUCCESSFULLY');
   console.log('Press Ctrl+C to stop.');
+});
+
+// Error handling for CI/CD
+server.on('error', (err) => {
+  console.error('Server error:', err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
 });
