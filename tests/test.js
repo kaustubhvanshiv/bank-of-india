@@ -43,7 +43,7 @@ function performHealthCheck() {
 
 // Start server in background
 console.log('STARTING SERVER');
-child = spawn('node', ['server.js']);
+child = spawn('node', ['./app/server.js']);
 
 let testCompleted = false;
 

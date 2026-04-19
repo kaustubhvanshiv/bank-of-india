@@ -188,17 +188,22 @@ Use these hardcoded credentials for testing:
 
 ```
 .
-├── index.html                        # Login page
-├── home.html                         # Dashboard page
-├── script.js                         # App logic and localStorage handling
-├── style.css                         # UI styling and responsive layout
-├── server.js                         # Node.js HTTP server for static files
-├── Dockerfile                        # Nginx configuration for static hosting
-├── Jenkinsfile                       # CI/CD pipeline definition
-├── README.md                         # This file
-├── docs/
-│   ├── App_expectations.md          # Project requirements and acceptance criteria
-│   └── current_status.md            # Implementation status and gaps
+├── app/                                  # Application code and static files
+│   ├── index.html                       # Login page
+│   ├── home.html                        # Dashboard page
+│   ├── script.js                        # App logic and localStorage handling
+│   ├── style.css                        # UI styling and responsive layout
+│   └── server.js                        # Node.js HTTP server for static files
+├── tests/                                # Test scripts for CI/CD
+│   ├── test.js                          # Node.js cross-platform test runner
+│   └── test.sh                          # Bash test script (Linux)
+├── docs/                                 # Documentation
+│   ├── App_expectations.md              # Project requirements and acceptance criteria
+│   └── current_status.md                # Implementation status and gaps
+├── Dockerfile                           # Nginx configuration for containerized deployment
+├── Jenkinsfile                          # CI/CD pipeline definition
+├── .gitignore                           # Git ignore for Node.js and project cleanup
+└── README.md                            # This file
 ```
 
 ---

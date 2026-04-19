@@ -30,3 +30,6 @@ temp/
 
 # Optional local Docker override files
 docker-compose.override.yml
+
+# Personal documentation and testing notes
+docs/devops_testing.txt

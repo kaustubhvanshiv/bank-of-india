@@ -19,7 +19,7 @@ pipeline {
                 echo '=========================================='
                 echo 'Running health check validation...'
                 echo '🚀 Starting CI/CD Validation Process'
-                sh 'node test.js'
+                sh 'node tests/test.js'
                 echo 'Test script completed successfully'
             }
         }
