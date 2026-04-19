@@ -4,6 +4,7 @@ const ADMIN_PASS = 'admin123';
 const USERS_KEY = 'bankUsersData';
 const ADMIN_SESSION_KEY = 'adminSession';
 const LAST_GLOBAL_KEY = 'lastGlobalAction'; // Store info for undoing
+const FORCE_ERROR = false; // Set to true to simulate CI/CD failure during demo
 
 // --- Initialization ---
 function initData() {
@@ -513,6 +514,11 @@ function setupAdminPage() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Debug flag: intentional error for CI/CD failure simulation
+  if (FORCE_ERROR) {
+    throw new Error('INTENTIONAL ERROR: FORCE_ERROR flag is true. Simulating CI/CD failure.');
+  }
+  
   setupLoginPage();
   setupAdminPage();
 });
