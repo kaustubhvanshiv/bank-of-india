@@ -45,3 +45,11 @@ Build a simple banking web application using only HTML, CSS, and vanilla JavaScr
 - [ ] Interest action applies correctly.
 - [ ] Undo action reverses last transaction safely.
 - [ ] Logout returns user to login screen.
+
+## DevOps Expectations
+
+- Application should run successfully using Node.js server.
+- CI/CD pipeline should validate runtime execution via `/health` endpoint.
+- System should detect failures before merging branches.
+- Docker build should succeed without errors.
+- Test scripts should confirm server is running and responsive.

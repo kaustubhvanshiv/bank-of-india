@@ -14,6 +14,15 @@ Last updated: 2026-04-19
 8. Node.js HTTP server added for serving static files on port 5000.
 9. Dockerfile added for Nginx-based static hosting.
 
+## DevOps Enhancements
+
+1. Added Node.js server for runtime validation.
+2. Added `/health` endpoint for CI/CD health checks.
+3. Added test.sh (bash) and test.js (Node.js) test scripts for pipeline validation.
+4. Prepared project for Jenkins multibranch pipeline with Jenkinsfile.
+5. Enabled server-based runtime validation instead of static code checks.
+6. Added proper error handling and startup logging with "SERVER_STARTED_SUCCESSFULLY" marker.
+
 ## Data Model (localStorage)
 
 1. isLoggedIn: string boolean flag.

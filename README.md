@@ -27,10 +27,12 @@ The pipeline follows this automated flow:
 3. **Jenkins detects change** → Multibranch pipeline activated
 4. **Pipeline stages execute**:
    - ✅ **Checkout**: Clone the latest code from Git
-   - ✅ **Validation**: Run basic checks (linting, syntax)
-   - ✅ **Build**: Prepare assets and dependencies
-   - ✅ **Docker Build**: Create container image
+   - ✅ **Run Server**: Start the Node.js server in background
+   - ✅ **Test**: Call `/health` endpoint to confirm app is running correctly
+   - ✅ **Docker Build**: Create container image (main branch only)
 5. **Pipeline success or failure** → Notification sent back to GitHub
+
+**Note**: Pipeline ensures the application actually runs, not just code syntax validation
 
 **Example**: A bug in a feature branch is caught immediately; once fixed, the pipeline passes automatically.
 
@@ -55,16 +57,20 @@ We follow a structured branching model:
 The Jenkins pipeline (defined in `Jenkinsfile`) executes the following stages:
 
 ```
-Checkout → Validate → Build → Docker Build → Notify
+Checkout → Run Server → Test → Docker Build → Notify
 ```
 
 ### Pipeline Stages:
 
 - **Checkout**: Clones the repository at the commit SHA
-- **Validation**: Checks code quality and syntax (placeholder for extensibility)
-- **Build**: Prepares assets and runs basic checks
-- **Docker Build**: Creates a Docker image tagged with branch name
+- **Run Server**: Starts `server.js` in the background using Node.js
+- **Test**: Calls `http://localhost:5000/health` endpoint to validate server runtime
+  - If response is `"OK"` → Test passes, pipeline continues
+  - If response is not `"OK"` or connection fails → Test fails, pipeline stops
+- **Docker Build**: Creates a Docker image tagged with branch name (main branch only)
 - **Notify**: Sends results back to GitHub (pass/fail status)
+
+**Server Runtime Validation**: Jenkins runs actual server code and confirms the `/health` endpoint responds correctly, ensuring the application works in a real environment before containerization.
 
 All stages are logged for audit trails and debugging.
 
@@ -74,19 +80,37 @@ All stages are logged for audit trails and debugging.
 
 This project includes a **failure scenario** to demonstrate early bug detection:
 
-1. **Intentional bug** introduced in a `feature/bug-demo` branch (e.g., syntax error or missing value)
+1. **Intentional bug** introduced in a `feature/bug-demo` branch (e.g., syntax error or runtime issue)
 2. **Developer pushes** the buggy code to GitHub
-3. **Jenkins pipeline runs** and catches the error during validation or build stage
+3. **Jenkins pipeline runs**:
+   - Checkout stage succeeds
+   - Run Server stage starts the Node.js application
+   - Test stage calls `/health` endpoint
+   - If the bug prevents the server from responding → Health check fails → **Pipeline fails**
 4. **Pipeline fails** and GitHub is notified (red X on commit)
 5. **Developer receives feedback** immediately and fixes the bug
 6. **Retest**: New commit runs the pipeline again
-7. **Pipeline succeeds** once the bug is fixed (green checkmark)
+7. **Pipeline succeeds** once the bug is fixed and server responds to health check (green checkmark)
 
-**Learning Point**: Automated pipelines catch errors faster than manual testing, enabling quick feedback loops.
+**Learning Point**: Runtime validation catches errors faster than static analysis. By testing the actual running application, we ensure real-world functionality before containerization and deployment.
 
 ---
 
-## 🐳 Docker Usage
+## � CI/CD Failure Simulation
+
+To demonstrate how the pipeline catches failures:
+
+1. **Enable failure mode**: Set `FORCE_ERROR = true` in `server.js` (line 6)
+2. **Push to branch**: Commit and push to any feature branch
+3. **Watch pipeline fail**: Jenkins detects broken health check → Pipeline fails
+4. **Fix the error**: Change `FORCE_ERROR = false`
+5. **Push again**: New commit re-runs pipeline → Pipeline passes
+
+**Result**: GitHub shows red X on broken commit, green checkmark on fixed commit. Perfect for demonstrating automated quality gates!
+
+---
+
+## �🐳 Docker Usage
 
 Docker ensures **consistent environments** across development, testing, and production:
 
