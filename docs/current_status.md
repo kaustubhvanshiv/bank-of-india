@@ -1,25 +1,29 @@
 ## Current Status
 
-**Last updated**: 2026-04-19
+**Last updated**: 2026-05-02
 
-**Overall Status**: ✅ **CI/CD Fully Functional** — Docker integration working, multibranch pipeline validated
+**Overall Status**: ✅ **CI/CD Fully Functional + RBAC Implemented**
 
 ## Completed
 
 **Application Layer**:
 1. Frontend-only bank app with login and dashboard pages
-2. LocalStorage integration for session, user, balance, and history
-3. Banking operations: Deposit, Withdraw, Transfer, Interest, Undo, Clear History
-4. Transaction history tracking and UI feedback messaging
-5. Overdraft prevention and input validation
-6. Responsive card-based UI design
+2. Role-Based Access Control with three roles: admin, manager, viewer
+3. Role-based login persisted through localStorage session keys
+4. Permission checks for critical actions (create request, approve, delete, freeze)
+5. Request/approve/execute transaction pipeline for deposit, withdraw, transfer
+6. Account freeze/unfreeze support
+7. Single execution path for all approved balance changes
+8. Transaction history tracking and UI feedback messaging
+9. Overdraft prevention and input validation
+10. Responsive card-based UI design
 
 **Server & Deployment**:
-7. Node.js HTTP server (port 5000) serving static files
-8. `/health` endpoint for runtime validation (returns "OK")
-9. Dockerfile with Nginx for containerized static hosting
-10. Jenkins Jenkinsfile for multibranch CI/CD pipeline
-11. Test automation script (tests/test.js) for health validation
+10. Node.js HTTP server (port 5000) serving static files
+11. /health endpoint for runtime validation (returns OK)
+12. Dockerfile with Nginx for containerized static hosting
+13. Jenkins Jenkinsfile for multibranch CI/CD pipeline
+14. Test automation script (tests/test.js) for health validation
 
 ## DevOps Enhancements
 
@@ -44,7 +48,7 @@
 
 **Test Results**: ✅ Passing
 - Server startup successful
-- Health endpoint responds with "OK"
+- Health endpoint responds with OK
 - Docker build completes successfully on main branch
 
 ---
@@ -61,24 +65,28 @@
 
 ## Data Model (localStorage)
 
-1. isLoggedIn: string boolean flag.
-2. loggedInUser: current username.
-3. bankBalance: numeric string.
-4. transactionHistory: array of transaction objects.
+1. bankUsersData: array of users with username, balance, transactions, isFrozen.
+2. bankAuthUsers: array of login users with username, password, role.
+3. bankPendingTransactions: request records with PENDING, APPROVED, or REJECTED status.
+4. adminSession: login status flag.
+5. currentUserRole: active role.
+6. currentUsername: active logged-in username.
+7. lastGlobalAction: snapshot metadata for undoing global interest.
 
 ## Known Limitations
 
-1. Single hardcoded user only (demo purposes)
-2. No multi-account support
-3. No persistent backend database
-4. Docker image serves static content via Nginx (not dynamic backend)
-5. No authentication security (not production-ready)
+1. Credentials and roles are stored in localStorage (not secure for production).
+2. No backend API or persistent database.
+3. No password hashing or token-based auth.
+4. Docker image serves static content via Nginx (not dynamic backend).
+5. Manager workflow is approval-centric and intentionally restricted from account management.
+6. Transaction execution is simulated in the browser, so this is not production banking software.
 
 ## Recommended Next Improvements
 
-1. Add Express backend API for persistent data storage
-2. Add JWT-based authentication for security
-3. Add per-user account isolation with database
-4. Add performance and load testing in CI/CD pipeline
-5. Add integration tests for banking logic
-6. Add automated rollback on deployment failures
+1. Move auth and role validation to backend APIs.
+2. Use hashed passwords and JWT/session token security.
+3. Add audit log export for admin and manager actions.
+4. Add automated UI tests for role-based visibility and access checks.
+5. Add performance and load testing in CI/CD pipeline.
+6. Add automated rollback or gated deployment strategy.
