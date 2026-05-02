@@ -19,7 +19,10 @@
     </div>
     <ul class="sidebar-menu" id="sidebarMenu">
       <li class="active" data-target="dashboard-section">Dashboard</li>
+      <li id="menuRequests" data-target="requests-section">Requests</li>
+      <li id="menuApprovals" data-target="approvals-section">Approvals</li>
       <li id="menuUsers" data-target="users-section">Users</li>
+      <li id="menuLogs" data-target="logs-section">Logs</li>
       <li id="menuTransactions" data-target="transactions-section">Transactions</li>
       <li id="menuControls" data-target="controls-section">System Controls</li>
       <li id="logoutBtn" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">Logout</li>
@@ -65,11 +68,62 @@
       </div>
     </section>
 
+    <!-- Requests Section -->
+    <section id="requests-section" class="section">
+      <div class="controls-grid">
+        <div class="control-card">
+          <h3>Request Account</h3>
+          <p>Submit a new account onboarding request for manager approval.</p>
+          <button id="showAddUserBtn" class="accent-btn" style="width:100%;">Request Account</button>
+        </div>
+        <div class="control-card">
+          <h3>Request Transaction</h3>
+          <p>Create deposit, withdraw, or transfer requests for your active account.</p>
+          <button id="showManageModalBtn" class="accent-btn" style="width:100%;">Request Transaction</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Approvals Section -->
+    <section id="approvals-section" class="section">
+      <div class="table-container">
+        <h3>Pending Account Requests</h3>
+        <table id="pending-account-requests">
+          <thead>
+            <tr>
+              <th>Created At</th>
+              <th>Username</th>
+              <th>Requested By</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="table-container">
+        <h3>Pending Transaction Requests</h3>
+        <table id="pending-transactions-table">
+          <thead>
+            <tr>
+              <th>Created At</th>
+              <th>Type</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Amount (₹)</th>
+              <th>Requested By</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Users Section -->
     <section id="users-section" class="section">
       <div style="display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center;">
         <input type="text" id="searchUserInput" placeholder="Search by username..." style="max-width: 300px;">
-        <button id="showAddUserBtn" class="accent-btn">+ Create User</button>
       </div>
       
       <div class="table-container">
@@ -77,6 +131,7 @@
           <thead>
             <tr>
               <th>Username</th>
+              <th>Status</th>
               <th>Current Balance (₹)</th>
               <th>Tx Count</th>
               <th style="width: 15rem;">Admin Actions</th>
@@ -123,44 +178,32 @@
     <!-- Controls Section -->
     <section id="controls-section" class="section">
       <div class="controls-grid">
-        <div class="control-card" id="approvalsCard">
-          <h3>Pending Transactions</h3>
-          <p>Approve or reject pending transaction requests.</p>
-          <div class="table-container" style="padding: 0; margin-bottom: 0; box-shadow: none;">
-            <table id="pending-transactions-table">
-              <thead>
-                <tr>
-                  <th>Created At</th>
-                  <th>Type</th>
-                  <th>User</th>
-                  <th>To User</th>
-                  <th>Amount</th>
-                  <th>Requested By</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-
         <div class="control-card">
-          <h3>Apply Global Interest</h3>
-          <p>Credit +2% interest to all user accounts based on their current balance iteratively.</p>
-          <button id="applyInterestBtn" class="accent-btn" style="width:100%;">Execute to All Users</button>
-        </div>
-        <div class="control-card">
-          <h3>System Transaction Reversal</h3>
-          <p>Undo the last global system transaction across all users.</p>
-          <button id="undoGlobalBtn" class="accent-btn" style="width:100%;">Undo Last Action</button>
-        </div>
-        <div class="control-card" style="border-left: 4px solid var(--danger);">
-          <h3>Purge Data</h3>
-          <p>Clear all transaction history for ALL users. This cannot be undone.</p>
-          <button id="clearAllHistoryBtn" class="danger-btn" style="width:100%;">Clear All History</button>
+          <h3>System Controls</h3>
+          <p>Admin-only controls for account lifecycle monitoring.</p>
+          <button id="applyInterestBtn" class="accent-btn" style="width:100%;">Disabled</button>
         </div>
       </div>
       <p id="controlMessage" class="message" style="text-align: center; margin-top:20px; font-size: 16px;"></p>
+    </section>
+
+    <!-- Logs Section -->
+    <section id="logs-section" class="section">
+      <div class="table-container">
+        <h3>Audit Logs</h3>
+        <table id="audit-logs-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Action</th>
+              <th>Actor</th>
+              <th>Role</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
   </main>
@@ -169,43 +212,43 @@
   <!-- Add User Modal -->
   <div id="addUserModal" class="modal-overlay">
     <div class="modal">
-      <h3>Create New User</h3>
+      <h3>Request Account</h3>
       <div class="stack">
         <label>Username</label>
         <input type="text" id="newUsername" placeholder="Enter username">
-        <label>Initial Balance (₹)</label>
-        <input type="number" id="newInitialBalance" min="0" placeholder="0">
         <p id="addUserMsg" class="message"></p>
         <div class="btn-group">
           <button class="ghost-btn" id="closeAddUserModal">Cancel</button>
-          <button id="confirmAddUserBtn">Create</button>
+          <button id="confirmAddUserBtn">Submit Request</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Manage User Balance Modal -->
+  <!-- Transaction Request Modal -->
   <div id="manageBalanceModal" class="modal-overlay">
     <div class="modal">
-      <h3 id="manageModalTitle">Manage Balance</h3>
+      <h3 id="manageModalTitle">Request Transaction</h3>
       <div class="stack">
-        <p>User: <strong id="manageUsername"></strong></p>
-        <p>Current Balance: <strong id="manageCurrentBalance"></strong></p>
-        
+        <p>From User: <strong id="requestTransactionFrom"></strong></p>
+
         <label>Action</label>
         <select id="manageAction">
-          <option value="add">Add Money</option>
-          <option value="deduct">Deduct Money</option>
-          <option value="set">Set Balance</option>
+          <option value="deposit">Deposit</option>
+          <option value="withdraw">Withdraw</option>
+          <option value="transfer">Transfer</option>
         </select>
         
+        <label>To User (for transfer only)</label>
+        <input type="text" id="requestTransactionTo" placeholder="Recipient username">
+
         <label>Amount (₹)</label>
-        <input type="number" id="manageAmount" min="0" placeholder="Amount">
-        <p id="manageUserMsg" class="message"></p>
+        <input type="number" id="requestTransactionAmount" min="0" placeholder="Amount">
+        <p id="requestTransactionMsg" class="message"></p>
         
         <div class="btn-group">
           <button class="ghost-btn" id="closeManageModal">Cancel</button>
-          <button id="confirmManageBtn">Apply Change</button>
+          <button id="confirmManageBtn">Submit Request</button>
         </div>
       </div>
     </div>

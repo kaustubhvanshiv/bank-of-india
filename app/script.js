@@ -2,6 +2,8 @@
 const USERS_KEY = 'bankUsersData';
 const AUTH_USERS_KEY = 'bankAuthUsers';
 const PENDING_TX_KEY = 'bankPendingTransactions';
+const ACCOUNT_REQUESTS_KEY = 'bankAccountRequests';
+const AUDIT_LOGS_KEY = 'bankAuditLogs';
 const ADMIN_SESSION_KEY = 'adminSession';
 const CURRENT_USER_ROLE_KEY = 'currentUserRole';
 const CURRENT_USER_NAME_KEY = 'currentUsername';
@@ -14,36 +16,20 @@ const ROLES = {
   VIEWER: 'viewer'
 };
 
-const PERMISSIONS = {
-  CREATE_TRANSACTION: 'CREATE_TRANSACTION',
-  APPROVE_TRANSACTION: 'APPROVE_TRANSACTION',
+const ACTIONS = {
+  CREATE_REQUEST: 'CREATE_REQUEST',
+  APPROVE: 'APPROVE',
+  FREEZE: 'FREEZE',
   DELETE_USER: 'DELETE_USER',
-  FREEZE_ACCOUNT: 'FREEZE_ACCOUNT',
-  VIEW_ONLY: 'VIEW_ONLY'
+  VIEW_ONLY: 'VIEW_ONLY',
+  VIEW_ALL: 'VIEW_ALL'
 };
 
-const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: {
-    [PERMISSIONS.CREATE_TRANSACTION]: true,
-    [PERMISSIONS.APPROVE_TRANSACTION]: true,
-    [PERMISSIONS.DELETE_USER]: true,
-    [PERMISSIONS.FREEZE_ACCOUNT]: true,
-    [PERMISSIONS.VIEW_ONLY]: true
-  },
-  [ROLES.MANAGER]: {
-    [PERMISSIONS.CREATE_TRANSACTION]: false,
-    [PERMISSIONS.APPROVE_TRANSACTION]: true,
-    [PERMISSIONS.DELETE_USER]: false,
-    [PERMISSIONS.FREEZE_ACCOUNT]: false,
-    [PERMISSIONS.VIEW_ONLY]: true
-  },
-  [ROLES.VIEWER]: {
-    [PERMISSIONS.CREATE_TRANSACTION]: false,
-    [PERMISSIONS.APPROVE_TRANSACTION]: false,
-    [PERMISSIONS.DELETE_USER]: false,
-    [PERMISSIONS.FREEZE_ACCOUNT]: false,
-    [PERMISSIONS.VIEW_ONLY]: true
-  }
+// Strict permission map for the banking simulation.
+const PERMISSIONS = {
+  [ROLES.ADMIN]: [ACTIONS.VIEW_ALL, ACTIONS.FREEZE, ACTIONS.DELETE_USER],
+  [ROLES.MANAGER]: [ACTIONS.APPROVE],
+  [ROLES.VIEWER]: [ACTIONS.CREATE_REQUEST]
 };
 
 // --- Initialization ---
@@ -51,11 +37,8 @@ function initData() {
   if (!localStorage.getItem(USERS_KEY)) {
     // Seed demo account/balance data
     const defaultData = [
-      { username: 'admin', balance: 10000, transactions: [], isFrozen: false },
-      { username: 'manager', balance: 5000, transactions: [], isFrozen: false },
-      { username: 'viewer', balance: 2000, transactions: [], isFrozen: false },
-      { username: 'user1', balance: 10000, transactions: [], isFrozen: false },
-      { username: 'testuser', balance: 500, transactions: [], isFrozen: false }
+      { username: 'user1', balance: 10000, transactions: [], isFrozen: false, isActive: true },
+      { username: 'testuser', balance: 500, transactions: [], isFrozen: false, isActive: true }
     ];
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultData));
   }
@@ -73,14 +56,22 @@ function initData() {
   if (!localStorage.getItem(PENDING_TX_KEY)) {
     localStorage.setItem(PENDING_TX_KEY, JSON.stringify([]));
   }
+
+  if (!localStorage.getItem(ACCOUNT_REQUESTS_KEY)) {
+    localStorage.setItem(ACCOUNT_REQUESTS_KEY, JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem(AUDIT_LOGS_KEY)) {
+    localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify([]));
+  }
 }
 
 // --- LocalStorage Helpers ---
 function getUsers() {
   try {
     const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-    // Keep backward compatibility for old entries without isFrozen flag
-    return users.map((u) => ({ ...u, isFrozen: Boolean(u.isFrozen) }));
+    // Keep backward compatibility for old entries without lifecycle flags.
+    return users.map((u) => ({ ...u, isFrozen: Boolean(u.isFrozen), isActive: u.isActive !== false }));
   } catch (e) {
     return [];
   }
@@ -110,6 +101,30 @@ function savePendingTransactions(pending) {
   localStorage.setItem(PENDING_TX_KEY, JSON.stringify(pending));
 }
 
+function getAccountRequests() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_REQUESTS_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveAccountRequests(requests) {
+  localStorage.setItem(ACCOUNT_REQUESTS_KEY, JSON.stringify(requests));
+}
+
+function getAuditLogs() {
+  try {
+    return JSON.parse(localStorage.getItem(AUDIT_LOGS_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveAuditLogs(logs) {
+  localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(logs));
+}
+
 function roundToTwo(num) {
   return Math.round((num + Number.EPSILON) * 100) / 100;
 }
@@ -133,6 +148,19 @@ function createTxRecord(type, amount, balanceAfter, details = '') {
   };
 }
 
+function writeAuditLog(action, details = {}) {
+  const logs = getAuditLogs();
+  logs.unshift({
+    id: createRequestId(),
+    action,
+    details,
+    actor: getCurrentUsername() || 'system',
+    role: getCurrentRole(),
+    createdAt: Date.now()
+  });
+  saveAuditLogs(logs);
+}
+
 // --- Authentication + RBAC ---
 function getCurrentRole() {
   return localStorage.getItem(CURRENT_USER_ROLE_KEY) || ROLES.VIEWER;
@@ -143,9 +171,9 @@ function getCurrentUsername() {
 }
 
 function hasPermission(action) {
-  const role = getCurrentRole();
-  const permissionsForRole = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS[ROLES.VIEWER];
-  return Boolean(permissionsForRole[action]);
+  const role = localStorage.getItem(CURRENT_USER_ROLE_KEY) || ROLES.VIEWER;
+  const permissionsForRole = PERMISSIONS[role] || [];
+  return permissionsForRole.includes(action);
 }
 
 function denyAccess() {
@@ -187,6 +215,41 @@ function showMessage(id, text, type) {
   }
 }
 
+function createRequestId() {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getPendingTransactionById(id) {
+  return getPendingTransactions().find((transaction) => transaction.id === id) || null;
+}
+
+function persistPendingTransaction(updatedTxn) {
+  const pending = getPendingTransactions();
+  const index = pending.findIndex((transaction) => transaction.id === updatedTxn.id);
+  if (index === -1) {
+    return false;
+  }
+  pending[index] = updatedTxn;
+  savePendingTransactions(pending);
+  return true;
+}
+
+function assertRoleAllowedForManagement() {
+  if (getCurrentRole() !== ROLES.ADMIN) {
+    denyAccess();
+    return false;
+  }
+  return true;
+}
+
+function assertManagerApprovalAccess() {
+  if (getCurrentRole() !== ROLES.MANAGER) {
+    denyAccess();
+    return false;
+  }
+  return true;
+}
+
 function setRoleTextInHeader() {
   const adminNameEl = document.getElementById('adminName');
   if (!adminNameEl) return;
@@ -197,7 +260,16 @@ function setRoleTextInHeader() {
 function applyRoleBasedUIState() {
   const role = getCurrentRole();
 
+  const requestSection = document.getElementById('requests-section');
+  const approvalsSection = document.getElementById('approvals-section');
+  const usersSection = document.getElementById('users-section');
+  const logsSection = document.getElementById('logs-section');
+  const controlsSection = document.getElementById('controls-section');
+
   const usersMenu = document.getElementById('menuUsers');
+  const requestsMenu = document.getElementById('menuRequests');
+  const approvalsMenu = document.getElementById('menuApprovals');
+  const logsMenu = document.getElementById('menuLogs');
   const controlsMenu = document.getElementById('menuControls');
   const showAddUserBtn = document.getElementById('showAddUserBtn');
 
@@ -205,43 +277,328 @@ function applyRoleBasedUIState() {
   const undoBtn = document.getElementById('undoGlobalBtn');
   const clearBtn = document.getElementById('clearAllHistoryBtn');
 
-  const approvalsCard = document.getElementById('approvalsCard');
-  const controlsSection = document.getElementById('controls-section');
+  const hideAll = [requestSection, approvalsSection, usersSection, logsSection, controlsSection];
+  hideAll.forEach((section) => {
+    if (section) section.style.display = 'none';
+  });
 
-  if (role === ROLES.ADMIN) {
-    if (usersMenu) usersMenu.style.display = '';
-    if (controlsMenu) controlsMenu.style.display = '';
-    if (showAddUserBtn) showAddUserBtn.disabled = false;
-    if (interestBtn) interestBtn.disabled = false;
-    if (undoBtn) undoBtn.disabled = false;
-    if (clearBtn) clearBtn.disabled = false;
-    if (approvalsCard) approvalsCard.style.display = '';
+  if (role === ROLES.VIEWER) {
+    if (requestsMenu) requestsMenu.style.display = '';
+    if (approvalsMenu) approvalsMenu.style.display = 'none';
+    if (usersMenu) usersMenu.style.display = 'none';
+    if (logsMenu) logsMenu.style.display = 'none';
+    if (controlsMenu) controlsMenu.style.display = 'none';
+    if (requestSection) requestSection.style.display = 'block';
     return;
   }
 
   if (role === ROLES.MANAGER) {
+    if (requestsMenu) requestsMenu.style.display = 'none';
+    if (approvalsMenu) approvalsMenu.style.display = '';
     if (usersMenu) usersMenu.style.display = 'none';
-    if (controlsMenu) controlsMenu.style.display = '';
-    if (showAddUserBtn) showAddUserBtn.disabled = true;
-    if (interestBtn) interestBtn.style.display = 'none';
-    if (undoBtn) undoBtn.style.display = 'none';
-    if (clearBtn) clearBtn.style.display = 'none';
-    if (approvalsCard) approvalsCard.style.display = '';
-
-    // Ensure manager lands on permitted section if currently on hidden section
-    const activeSection = document.querySelector('.section.active');
-    if (activeSection && activeSection.id === 'users-section') {
-      document.querySelectorAll('.section').forEach((sec) => sec.classList.remove('active'));
-      document.getElementById('controls-section')?.classList.add('active');
-    }
+    if (logsMenu) logsMenu.style.display = 'none';
+    if (controlsMenu) controlsMenu.style.display = 'none';
+    if (approvalsSection) approvalsSection.style.display = 'block';
     return;
   }
 
-  // Viewer: read-only. Keep dashboard + transaction history only.
-  if (usersMenu) usersMenu.style.display = 'none';
-  if (controlsMenu) controlsMenu.style.display = 'none';
-  if (showAddUserBtn) showAddUserBtn.disabled = true;
-  if (controlsSection) controlsSection.style.display = 'none';
+  if (role === ROLES.ADMIN) {
+    if (requestsMenu) requestsMenu.style.display = 'none';
+    if (approvalsMenu) approvalsMenu.style.display = 'none';
+    if (usersMenu) usersMenu.style.display = '';
+    if (logsMenu) logsMenu.style.display = '';
+    if (controlsMenu) controlsMenu.style.display = '';
+    if (usersSection) usersSection.style.display = 'block';
+    if (logsSection) logsSection.style.display = 'block';
+    if (controlsSection) controlsSection.style.display = 'block';
+    if (showAddUserBtn) showAddUserBtn.disabled = false;
+    if (interestBtn) interestBtn.style.display = 'none';
+    if (undoBtn) undoBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
+function createTransactionRequest(type, data = {}) {
+  if (getCurrentRole() !== ROLES.VIEWER) {
+    denyAccess();
+    return null;
+  }
+
+  const normalizedType = String(type || '').toLowerCase();
+  if (!['deposit', 'withdraw', 'transfer'].includes(normalizedType)) {
+    throw new Error('Unsupported transaction type');
+  }
+
+  const fromUser = getCurrentUsername().trim();
+  const toUser = String(data.toUser || '').trim();
+  const amount = roundToTwo(Number(data.amount));
+
+  if (!fromUser || !amount || amount <= 0) {
+    throw new Error('Valid transaction details are required');
+  }
+
+  if (normalizedType === 'transfer' && (!toUser || fromUser === toUser)) {
+    throw new Error('Transfer recipient is required');
+  }
+
+  const users = getUsers();
+  const sourceUser = users.find((user) => user.username === fromUser);
+  const targetUser = normalizedType === 'transfer' ? users.find((user) => user.username === toUser) : null;
+
+  if (!sourceUser) {
+    throw new Error('Source user not found');
+  }
+
+  if (!sourceUser.isActive || sourceUser.isFrozen) {
+    throw new Error('Source account is frozen');
+  }
+
+  if (normalizedType === 'transfer' && (!targetUser || targetUser.isFrozen)) {
+    throw new Error('Transfer target account is unavailable');
+  }
+
+  const request = {
+    id: createRequestId(),
+    type: normalizedType,
+    amount,
+    fromUser,
+    toUser: normalizedType === 'transfer' ? toUser : undefined,
+    status: 'PENDING',
+    createdBy: getCurrentUsername() || 'system',
+    approvedBy: null,
+    createdAt: Date.now(),
+    approvedAt: null
+  };
+
+  const pending = getPendingTransactions();
+  pending.push(request);
+  savePendingTransactions(pending);
+  return request;
+}
+
+function createAccountRequest(data = {}) {
+  if (getCurrentRole() !== ROLES.VIEWER) {
+    denyAccess();
+    return null;
+  }
+
+  const username = String(data.username || getCurrentUsername()).trim();
+  if (!username) {
+    throw new Error('Username is required');
+  }
+
+  const users = getUsers();
+  const accountRequests = getAccountRequests();
+
+  if (users.some((user) => user.username === username) || accountRequests.some((request) => request.username === username && request.status === 'PENDING')) {
+    throw new Error('Username already exists or is already pending');
+  }
+
+  const request = {
+    id: createRequestId(),
+    username,
+    status: 'PENDING',
+    createdBy: getCurrentUsername() || username,
+    approvedBy: null,
+    createdAt: Date.now(),
+    approvedAt: null
+  };
+
+  accountRequests.push(request);
+  saveAccountRequests(accountRequests);
+  writeAuditLog('ACCOUNT_REQUEST_CREATED', { username });
+  return request;
+}
+
+function executeApprovedTransaction(txn) {
+  if (!txn || txn.status !== 'APPROVED') {
+    throw new Error('Only approved transactions can be executed');
+  }
+
+  const users = getUsers();
+  const sourceUser = users.find((user) => user.username === txn.fromUser);
+  const targetUser = txn.toUser ? users.find((user) => user.username === txn.toUser) : sourceUser;
+
+  if (!sourceUser) {
+    throw new Error('Source user not found');
+  }
+
+  if (!sourceUser.isActive) {
+    throw new Error('Source account is inactive');
+  }
+
+  if (sourceUser.isFrozen) {
+    throw new Error('Source account is frozen');
+  }
+
+  if (txn.type === 'transfer') {
+    if (!targetUser) {
+      throw new Error('Transfer target user not found');
+    }
+    if (!targetUser.isActive) {
+      throw new Error('Transfer target account is inactive');
+    }
+    if (targetUser.isFrozen) {
+      throw new Error('Target account is frozen');
+    }
+  }
+
+  const amount = roundToTwo(Number(txn.amount));
+  if (!amount || amount <= 0) {
+    throw new Error('Invalid transaction amount');
+  }
+
+  if (txn.type === 'deposit') {
+    sourceUser.balance = roundToTwo(sourceUser.balance + amount);
+    sourceUser.transactions.unshift(createTxRecord('Deposit', amount, sourceUser.balance, 'Approved deposit request'));
+  } else if (txn.type === 'withdraw') {
+    if (amount > sourceUser.balance) {
+      throw new Error('Insufficient balance');
+    }
+    sourceUser.balance = roundToTwo(sourceUser.balance - amount);
+    sourceUser.transactions.unshift(createTxRecord('Withdraw', -amount, sourceUser.balance, 'Approved withdrawal request'));
+  } else if (txn.type === 'transfer') {
+    if (amount > sourceUser.balance) {
+      throw new Error('Insufficient balance');
+    }
+
+    sourceUser.balance = roundToTwo(sourceUser.balance - amount);
+    targetUser.balance = roundToTwo(targetUser.balance + amount);
+
+    sourceUser.transactions.unshift(createTxRecord('Transfer', -amount, sourceUser.balance, `Transfer to ${targetUser.username}`));
+    targetUser.transactions.unshift(createTxRecord('Transfer', amount, targetUser.balance, `Transfer from ${sourceUser.username}`));
+  } else {
+    throw new Error('Unsupported approved transaction type');
+  }
+
+  txn.executedAt = Date.now();
+  saveUsers(users);
+  persistPendingTransaction(txn);
+  writeAuditLog('TRANSACTION_EXECUTED', { id: txn.id, type: txn.type, fromUser: txn.fromUser, toUser: txn.toUser || null, amount: txn.amount });
+  return true;
+}
+
+function approveTransaction(id) {
+  if (!assertManagerApprovalAccess()) {
+    denyAccess();
+    return false;
+  }
+
+  const pendingTxn = getPendingTransactionById(id);
+  if (!pendingTxn) {
+    throw new Error('Transaction not found');
+  }
+
+  if (pendingTxn.status !== 'PENDING') {
+    throw new Error('Transaction has already been processed');
+  }
+
+  const updatedTxn = { ...pendingTxn, status: 'APPROVED', approvedBy: getCurrentUsername() || 'system', approvedAt: Date.now() };
+  persistPendingTransaction(updatedTxn);
+
+  try {
+    executeApprovedTransaction(updatedTxn);
+  } catch (error) {
+    persistPendingTransaction({ ...updatedTxn, status: 'PENDING', approvedBy: null, approvedAt: null, executedAt: null });
+    showMessage('controlMessage', error.message, 'error');
+    return false;
+  }
+
+  showMessage('controlMessage', 'Transaction approved and executed.', 'success');
+  writeAuditLog('TRANSACTION_APPROVED', { id });
+  renderDashboard();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  renderAllTransactions();
+  renderPendingTransactions();
+  return true;
+}
+
+function rejectTransaction(id) {
+  if (!assertManagerApprovalAccess()) {
+    denyAccess();
+    return false;
+  }
+
+  const pendingTxn = getPendingTransactionById(id);
+  if (!pendingTxn) {
+    throw new Error('Transaction not found');
+  }
+
+  if (pendingTxn.status !== 'PENDING') {
+    throw new Error('Transaction has already been processed');
+  }
+
+  const updatedTxn = { ...pendingTxn, status: 'REJECTED', approvedBy: getCurrentUsername() || 'system', approvedAt: Date.now() };
+  persistPendingTransaction(updatedTxn);
+  writeAuditLog('TRANSACTION_REJECTED', { id });
+  showMessage('controlMessage', 'Transaction rejected.', 'success');
+  renderPendingTransactions();
+  return true;
+}
+
+function approveAccountRequest(id) {
+  if (!assertManagerApprovalAccess()) {
+    denyAccess();
+    return false;
+  }
+
+  const requests = getAccountRequests();
+  const request = requests.find((item) => item.id === id);
+  if (!request) {
+    throw new Error('Account request not found');
+  }
+  if (request.status !== 'PENDING') {
+    throw new Error('Account request has already been processed');
+  }
+
+  const users = getUsers();
+  if (users.some((user) => user.username === request.username)) {
+    throw new Error('User already exists');
+  }
+
+  request.status = 'APPROVED';
+  request.approvedBy = getCurrentUsername() || 'system';
+  request.approvedAt = Date.now();
+
+  users.push({
+    username: request.username,
+    balance: 0,
+    transactions: [],
+    isFrozen: false,
+    isActive: true
+  });
+
+  saveUsers(users);
+  saveAccountRequests(requests);
+  writeAuditLog('ACCOUNT_REQUEST_APPROVED', { id, username: request.username });
+  renderPendingAccountRequests();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  return true;
+}
+
+function rejectAccountRequest(id) {
+  if (!assertManagerApprovalAccess()) {
+    denyAccess();
+    return false;
+  }
+
+  const requests = getAccountRequests();
+  const request = requests.find((item) => item.id === id);
+  if (!request) {
+    throw new Error('Account request not found');
+  }
+  if (request.status !== 'PENDING') {
+    throw new Error('Account request has already been processed');
+  }
+
+  request.status = 'REJECTED';
+  request.approvedBy = getCurrentUsername() || 'system';
+  request.approvedAt = Date.now();
+
+  saveAccountRequests(requests);
+  writeAuditLog('ACCOUNT_REQUEST_REJECTED', { id, username: request.username });
+  renderPendingAccountRequests();
+  return true;
 }
 
 // --- UI Logic: Navigation ---
@@ -261,7 +618,15 @@ function setupNavigation() {
       document.getElementById(target).classList.add('active');
 
       // Refresh specific views
+      if(target === 'requests-section') {
+        renderPendingAccountRequests();
+      }
+      if(target === 'approvals-section') {
+        renderPendingAccountRequests();
+        renderPendingTransactions();
+      }
       if(target === 'users-section') renderUsersTable();
+      if(target === 'logs-section') renderAuditLogs();
       if(target === 'transactions-section') {
         populateUserFilter();
         renderAllTransactions();
@@ -341,10 +706,10 @@ function renderUsersTable(filterText = '') {
     const txCount = u.transactions ? u.transactions.length : 0;
     tr.innerHTML = `
       <td><strong>${u.username}</strong></td>
+      <td>${u.isActive ? 'Active' : 'Inactive'}</td>
       <td>${formatCurrency(u.balance)}</td>
       <td>${txCount}</td>
       <td>
-        <button class="ghost-btn manage-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px;">Manage Balance</button>
         <button class="accent-btn freeze-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">${freezeLabel}</button>
         <button class="danger-btn del-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Delete</button>
       </td>
@@ -353,9 +718,6 @@ function renderUsersTable(filterText = '') {
   });
 
   // Attach events
-  document.querySelectorAll('.manage-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => openManageModal(e.target.dataset.username));
-  });
   document.querySelectorAll('.freeze-btn').forEach(btn => {
     btn.addEventListener('click', (e) => toggleFreezeAccount(e.target.dataset.username));
   });
@@ -365,7 +727,7 @@ function renderUsersTable(filterText = '') {
 
   // Non-admin users should not be able to use account management controls.
   if (getCurrentRole() !== ROLES.ADMIN) {
-    tbody.querySelectorAll('.manage-btn, .freeze-btn, .del-btn').forEach((btn) => {
+    tbody.querySelectorAll('.freeze-btn, .del-btn').forEach((btn) => {
       btn.disabled = true;
     });
   }
@@ -374,7 +736,6 @@ function renderUsersTable(filterText = '') {
 // --- Modals ---
 function openAddUserModal() {
   document.getElementById('newUsername').value = '';
-  document.getElementById('newInitialBalance').value = '';
   document.getElementById('addUserMsg').textContent = '';
   document.getElementById('addUserModal').classList.add('active');
 }
@@ -384,48 +745,35 @@ function closeAddUserModal() {
 }
 
 function addUser() {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+  if (!hasPermission(ACTIONS.CREATE_REQUEST)) {
     denyAccess();
     return;
   }
 
   const uname = document.getElementById('newUsername').value.trim();
-  const initialBal = Number(document.getElementById('newInitialBalance').value) || 0;
 
   if (!uname) {
     showMessage('addUserMsg', 'Username is required', 'error');
     return;
   }
 
-  const users = getUsers();
-  if (users.find(u => u.username === uname)) {
-    showMessage('addUserMsg', 'Username already exists', 'error');
+  try {
+    createAccountRequest({ username: uname });
+  } catch (error) {
+    showMessage('addUserMsg', error.message, 'error');
     return;
   }
 
-  users.push({
-    username: uname,
-    balance: roundToTwo(initialBal),
-    transactions: initialBal > 0 ? [createTxRecord('Deposit', initialBal, initialBal, 'Initial Deposit')] : [],
-    isFrozen: false
-  });
-
-  saveUsers(users);
   closeAddUserModal();
-  renderUsersTable(document.getElementById('searchUserInput').value);
-  renderDashboard();
+  renderPendingAccountRequests();
 }
 
 function openManageModal(username) {
   selectedUserForAction = username;
-  const users = getUsers();
-  const user = users.find(u => u.username === username);
-  if(!user) return;
-
-  document.getElementById('manageUsername').textContent = user.username;
-  document.getElementById('manageCurrentBalance').textContent = formatCurrency(user.balance);
-  document.getElementById('manageAmount').value = '';
-  document.getElementById('manageUserMsg').textContent = '';
+  document.getElementById('requestTransactionFrom').textContent = username || getCurrentUsername();
+  document.getElementById('requestTransactionTo').value = '';
+  document.getElementById('requestTransactionAmount').value = '';
+  document.getElementById('requestTransactionMsg').textContent = '';
   document.getElementById('manageBalanceModal').classList.add('active');
 }
 
@@ -435,53 +783,39 @@ function closeManageModal() {
 }
 
 function applyManageUser() {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+  if (getCurrentRole() !== ROLES.VIEWER) {
     denyAccess();
     return;
   }
 
-  if(!selectedUserForAction) return;
   const action = document.getElementById('manageAction').value;
-  let amount = Number(document.getElementById('manageAmount').value);
+  const amount = Number(document.getElementById('requestTransactionAmount').value);
+  const toUser = document.getElementById('requestTransactionTo').value.trim();
+  const fromUser = getCurrentUsername().trim();
 
   if(!amount || amount < 0) {
-    if(action !== 'set' || amount < 0) {
-      showMessage('manageUserMsg', 'Valid amount is required', 'error');
-      return;
+    showMessage('requestTransactionMsg', 'Valid amount is required', 'error');
+    return;
+  }
+
+  if (!fromUser || fromUser !== getCurrentUsername()) {
+    showMessage('requestTransactionMsg', 'You can only request transactions for your own account.', 'error');
+    return;
+  }
+
+  try {
+    if (action === 'deposit' || action === 'withdraw') {
+      createTransactionRequest(action, { amount });
+    } else if (action === 'transfer') {
+      createTransactionRequest('transfer', { amount, toUser });
     }
-  }
-
-  const users = getUsers();
-  const user = users.find(u => u.username === selectedUserForAction);
-  if(!user) return;
-
-  if (user.isFrozen) {
-    showMessage('manageUserMsg', 'Account is frozen. Transaction not allowed.', 'error');
+  } catch (error) {
+    showMessage('requestTransactionMsg', error.message, 'error');
     return;
   }
 
-  if (action === 'add') {
-    deposit(user.username, amount);
-    closeManageModal();
-    renderPendingTransactions();
-    return;
-  } else if (action === 'deduct') {
-    withdraw(user.username, amount);
-    closeManageModal();
-    renderPendingTransactions();
-    return;
-  } else if (action === 'set') {
-    const diff = amount - user.balance;
-    if(diff !== 0) {
-      user.balance = roundToTwo(amount);
-      user.transactions.unshift(createTxRecord('Admin Mod', diff, user.balance, 'Admin Reset Balance'));
-    }
-  }
-
-  saveUsers(users);
   closeManageModal();
-  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
-  renderDashboard();
+  renderPendingTransactions();
 }
 
 function openDeleteModal(username) {
@@ -496,7 +830,7 @@ function closeDeleteModal() {
 }
 
 function executeDeleteUser() {
-  if (!hasPermission(PERMISSIONS.DELETE_USER)) {
+  if (!hasPermission(ACTIONS.DELETE_USER)) {
     denyAccess();
     return;
   }
@@ -505,13 +839,14 @@ function executeDeleteUser() {
   const users = getUsers();
   const newUsers = users.filter(u => u.username !== selectedUserForAction);
   saveUsers(newUsers);
+  writeAuditLog('USER_DELETED', { username: selectedUserForAction });
   closeDeleteModal();
   renderUsersTable(document.getElementById('searchUserInput')?.value || '');
   renderDashboard();
 }
 
 function toggleFreezeAccount(username) {
-  if (!hasPermission(PERMISSIONS.FREEZE_ACCOUNT)) {
+  if (!hasPermission(ACTIONS.FREEZE)) {
     denyAccess();
     return;
   }
@@ -525,6 +860,7 @@ function toggleFreezeAccount(username) {
   user.transactions.unshift(createTxRecord('System', 0, user.balance, actionText));
 
   saveUsers(users);
+  writeAuditLog('ACCOUNT_TOGGLE_FREEZE', { username, frozen: user.isFrozen });
   renderUsersTable(document.getElementById('searchUserInput')?.value || '');
   renderDashboard();
 }
@@ -589,12 +925,12 @@ function renderPendingTransactions() {
   const tbody = document.querySelector('#pending-transactions-table tbody');
   if (!tbody) return;
 
-  const pending = getPendingTransactions().sort((a, b) => b.createdAt - a.createdAt);
+  const pending = getPendingTransactions().filter((transaction) => transaction.status === 'PENDING').sort((a, b) => b.createdAt - a.createdAt);
   tbody.innerHTML = '';
 
   pending.forEach((tx) => {
     const tr = document.createElement('tr');
-    const canApprove = hasPermission(PERMISSIONS.APPROVE_TRANSACTION);
+    const canApprove = getCurrentRole() === ROLES.MANAGER;
     const actionCol = canApprove
       ? `<button class="accent-btn approve-btn" data-id="${tx.id}" style="padding: 6px 10px; font-size:13px;">Approve</button>
          <button class="danger-btn reject-btn" data-id="${tx.id}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Reject</button>`
@@ -613,242 +949,135 @@ function renderPendingTransactions() {
   });
 
   document.querySelectorAll('.approve-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => approveTransaction(e.target.dataset.id, 'approve'));
+    btn.addEventListener('click', (e) => approveTransaction(e.target.dataset.id));
   });
   document.querySelectorAll('.reject-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => approveTransaction(e.target.dataset.id, 'reject'));
+    btn.addEventListener('click', (e) => rejectTransaction(e.target.dataset.id));
   });
 }
 
-function queuePendingTransaction(type, username, amount, toUsername = '') {
-  const pending = getPendingTransactions();
-  pending.push({
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    type,
-    username,
-    toUsername,
-    amount: roundToTwo(amount),
-    status: 'PENDING',
-    createdBy: getCurrentUsername() || 'system',
-    createdAt: Date.now()
+function renderPendingAccountRequests() {
+  const tbody = document.querySelector('#pending-account-requests tbody');
+  if (!tbody) return;
+
+  const requests = getAccountRequests().filter((request) => request.status === 'PENDING').sort((a, b) => b.createdAt - a.createdAt);
+  tbody.innerHTML = '';
+
+  requests.forEach((request) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(request.createdAt).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'})}</td>
+      <td>${request.username}</td>
+      <td>${request.createdBy}</td>
+      <td>
+        <button class="accent-btn approve-account-btn" data-id="${request.id}" style="padding: 6px 10px; font-size:13px;">Approve</button>
+        <button class="danger-btn reject-account-btn" data-id="${request.id}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Reject</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
   });
-  savePendingTransactions(pending);
+
+  document.querySelectorAll('.approve-account-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => approveAccountRequest(e.target.dataset.id));
+  });
+  document.querySelectorAll('.reject-account-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => rejectAccountRequest(e.target.dataset.id));
+  });
+}
+
+function renderAuditLogs() {
+  const tbody = document.querySelector('#audit-logs-table tbody');
+  if (!tbody) return;
+
+  const logs = getAuditLogs();
+  tbody.innerHTML = '';
+
+  logs.slice(0, 50).forEach((log) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(log.createdAt).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'})}</td>
+      <td>${log.action}</td>
+      <td>${log.actor}</td>
+      <td>${log.role}</td>
+      <td>${JSON.stringify(log.details)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPendingAccountRequests() {
+  const tbody = document.querySelector('#pending-account-requests tbody');
+  if (!tbody) return;
+
+  const requests = getAccountRequests().filter((request) => request.status === 'PENDING').sort((a, b) => b.createdAt - a.createdAt);
+  tbody.innerHTML = '';
+
+  requests.forEach((request) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(request.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+      <td>${request.username}</td>
+      <td>${request.createdBy}</td>
+      <td>
+        <button class="accent-btn approve-account-btn" data-id="${request.id}" style="padding: 6px 10px; font-size:13px;">Approve</button>
+        <button class="danger-btn reject-account-btn" data-id="${request.id}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Reject</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.querySelectorAll('.approve-account-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => approveAccountRequest(e.target.dataset.id));
+  });
+  document.querySelectorAll('.reject-account-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => rejectAccountRequest(e.target.dataset.id));
+  });
+}
+
+function renderAuditLogs() {
+  const tbody = document.querySelector('#audit-logs-table tbody');
+  if (!tbody) return;
+
+  const logs = getAuditLogs();
+  tbody.innerHTML = '';
+
+  logs.slice(0, 50).forEach((log) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(log.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+      <td>${log.action}</td>
+      <td>${log.actor}</td>
+      <td>${log.role}</td>
+      <td>${JSON.stringify(log.details)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // Required by task: permission-protected transaction actions
 function deposit(username, amount) {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
-    denyAccess();
-    return false;
-  }
-
-  const users = getUsers();
-  const user = users.find((u) => u.username === username);
-  if (!user || user.isFrozen || !amount || amount <= 0) {
-    return false;
-  }
-
-  queuePendingTransaction('Deposit', username, amount);
-  showMessage('controlMessage', 'Deposit request submitted for approval.', 'success');
-  return true;
+  return createTransactionRequest('deposit', { amount, toUser: '' });
 }
 
 function withdraw(username, amount) {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
-    denyAccess();
-    return false;
-  }
-
-  const users = getUsers();
-  const user = users.find((u) => u.username === username);
-  if (!user || user.isFrozen || !amount || amount <= 0) {
-    return false;
-  }
-
-  if (amount > user.balance) {
-    return false;
-  }
-
-  queuePendingTransaction('Withdraw', username, amount);
-  showMessage('controlMessage', 'Withdraw request submitted for approval.', 'success');
-  return true;
+  return createTransactionRequest('withdraw', { amount, toUser: '' });
 }
 
 function transfer(username, toUsername, amount) {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
-    denyAccess();
-    return false;
-  }
-
-  if (!toUsername || username === toUsername || !amount || amount <= 0) {
-    return false;
-  }
-
-  const users = getUsers();
-  const fromUser = users.find((u) => u.username === username);
-  const toUser = users.find((u) => u.username === toUsername);
-
-  if (!fromUser || !toUser || fromUser.isFrozen || toUser.isFrozen || amount > fromUser.balance) {
-    return false;
-  }
-
-  queuePendingTransaction('Transfer', username, amount, toUsername);
-  showMessage('controlMessage', 'Transfer request submitted for approval.', 'success');
-  return true;
-}
-
-function approveTransaction(transactionId, decision = 'approve') {
-  if (!hasPermission(PERMISSIONS.APPROVE_TRANSACTION)) {
-    denyAccess();
-    return;
-  }
-
-  const pending = getPendingTransactions();
-  const txIndex = pending.findIndex((tx) => tx.id === transactionId);
-  if (txIndex === -1) return;
-
-  const tx = pending[txIndex];
-
-  if (decision === 'reject') {
-    pending.splice(txIndex, 1);
-    savePendingTransactions(pending);
-    showMessage('controlMessage', 'Transaction rejected.', 'success');
-    renderPendingTransactions();
-    return;
-  }
-
-  const users = getUsers();
-  const sourceUser = users.find((u) => u.username === tx.username);
-  if (!sourceUser || sourceUser.isFrozen) {
-    pending.splice(txIndex, 1);
-    savePendingTransactions(pending);
-    renderPendingTransactions();
-    return;
-  }
-
-  if (tx.type === 'Deposit') {
-    sourceUser.balance = roundToTwo(sourceUser.balance + tx.amount);
-    sourceUser.transactions.unshift(createTxRecord('Deposit', tx.amount, sourceUser.balance, 'Approved Deposit'));
-  } else if (tx.type === 'Withdraw') {
-    if (tx.amount > sourceUser.balance) {
-      pending.splice(txIndex, 1);
-      savePendingTransactions(pending);
-      showMessage('controlMessage', 'Withdraw failed during approval (insufficient balance).', 'error');
-      renderPendingTransactions();
-      return;
-    }
-    sourceUser.balance = roundToTwo(sourceUser.balance - tx.amount);
-    sourceUser.transactions.unshift(createTxRecord('Withdraw', -tx.amount, sourceUser.balance, 'Approved Withdraw'));
-  } else if (tx.type === 'Transfer') {
-    const targetUser = users.find((u) => u.username === tx.toUsername);
-    if (!targetUser || targetUser.isFrozen || tx.amount > sourceUser.balance) {
-      pending.splice(txIndex, 1);
-      savePendingTransactions(pending);
-      showMessage('controlMessage', 'Transfer failed during approval.', 'error');
-      renderPendingTransactions();
-      return;
-    }
-
-    sourceUser.balance = roundToTwo(sourceUser.balance - tx.amount);
-    targetUser.balance = roundToTwo(targetUser.balance + tx.amount);
-
-    sourceUser.transactions.unshift(createTxRecord('Transfer', -tx.amount, sourceUser.balance, `Approved transfer to ${targetUser.username}`));
-    targetUser.transactions.unshift(createTxRecord('Transfer', tx.amount, targetUser.balance, `Approved transfer from ${sourceUser.username}`));
-  }
-
-  pending.splice(txIndex, 1);
-  saveUsers(users);
-  savePendingTransactions(pending);
-
-  showMessage('controlMessage', 'Transaction approved successfully.', 'success');
-  renderDashboard();
-  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
-  renderAllTransactions();
-  renderPendingTransactions();
+  return createTransactionRequest('transfer', { amount, toUser: toUsername });
 }
 
 // --- System Controls ---
 function applyGlobalInterest() {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
-    denyAccess();
-    return;
-  }
-
-  const users = getUsers();
-  if(users.length === 0) {
-    showMessage('controlMessage', 'No users to add interest to.', 'error');
-    return;
-  }
-
-  let totalInterestGiven = 0;
-  
-  const snapshot = JSON.stringify(users); // For undo
-
-  users.forEach(u => {
-    if(u.balance > 0) {
-      const interest = roundToTwo(u.balance * 0.02);
-      if(interest > 0) {
-        u.balance = roundToTwo(u.balance + interest);
-        u.transactions.unshift(createTxRecord('Interest', interest, u.balance, '+2% Global Interest'));
-        totalInterestGiven += interest;
-      }
-    }
-  });
-
-  saveUsers(users);
-  
-  localStorage.setItem(LAST_GLOBAL_KEY, JSON.stringify({
-    type: 'INTEREST',
-    previousState: snapshot
-  }));
-
-  showMessage('controlMessage', `Applied +2% Interest. Total disbursed: ${formatCurrency(totalInterestGiven)}`, 'success');
-  renderDashboard();
+  denyAccess();
 }
 
 function undoGlobalAction() {
-  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
-    denyAccess();
-    return;
-  }
-
-  const lastAction = localStorage.getItem(LAST_GLOBAL_KEY);
-  if(!lastAction) {
-    showMessage('controlMessage', 'No system action available to undo.', 'error');
-    return;
-  }
-
-  try {
-    const actionData = JSON.parse(lastAction);
-    if(actionData.previousState) {
-      saveUsers(JSON.parse(actionData.previousState));
-      localStorage.removeItem(LAST_GLOBAL_KEY);
-      showMessage('controlMessage', 'Successfully reversed the last global action.', 'success');
-      renderDashboard();
-    }
-  } catch(e) {
-    showMessage('controlMessage', 'Failed to undo action. Data corrupted.', 'error');
-  }
+  denyAccess();
 }
 
 function purgeData() {
-  if (!hasPermission(PERMISSIONS.DELETE_USER)) {
-    denyAccess();
-    return;
-  }
-
-  if(confirm("CRITICAL: You are about to clear transaction histories for EVERY user. This cannot be reversed. Proceed?")) {
-    const users = getUsers();
-    users.forEach(u => {
-      u.transactions = [];
-    });
-    saveUsers(users);
-    showMessage('controlMessage', 'All transaction history cleared across the system.', 'success');
-    renderDashboard();
-    
-    // Clear undo stack as history is destroyed
-    localStorage.removeItem(LAST_GLOBAL_KEY);
-  }
+  denyAccess();
 }
 
 // --- Setup Pages ---
@@ -890,9 +1119,10 @@ function setupAdminPage() {
   updateSystemTime();
   setInterval(updateSystemTime, 1000);
   renderDashboard();
+  renderPendingAccountRequests();
   renderPendingTransactions();
+  renderAuditLogs();
 
-  // Navigation Logic specific to User interactions
   const searchUserInput = document.getElementById('searchUserInput');
   if(searchUserInput) {
     searchUserInput.addEventListener('input', (e) => renderUsersTable(e.target.value));
@@ -900,6 +1130,9 @@ function setupAdminPage() {
 
   const showAddUserBtn = document.getElementById('showAddUserBtn');
   if(showAddUserBtn) showAddUserBtn.addEventListener('click', openAddUserModal);
+
+  const showManageModalBtn = document.getElementById('showManageModalBtn');
+  if(showManageModalBtn) showManageModalBtn.addEventListener('click', () => openManageModal(getCurrentUsername()));
 
   document.getElementById('closeAddUserModal')?.addEventListener('click', closeAddUserModal);
   document.getElementById('confirmAddUserBtn')?.addEventListener('click', addUser);
@@ -916,7 +1149,7 @@ function setupAdminPage() {
   document.getElementById('filterUser')?.addEventListener('change', renderAllTransactions);
   document.getElementById('filterType')?.addEventListener('change', renderAllTransactions);
 
-  // Controls triggers
+  // Legacy controls are now intentionally inert to preserve request-only balance changes.
   document.getElementById('applyInterestBtn')?.addEventListener('click', applyGlobalInterest);
   document.getElementById('undoGlobalBtn')?.addEventListener('click', undoGlobalAction);
   document.getElementById('clearAllHistoryBtn')?.addEventListener('click', purgeData);

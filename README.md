@@ -1,51 +1,67 @@
-# 🚀 Bank Application with CI/CD Pipeline (Jenkins + Docker + Multibranch)
+# Bank Application with RBAC and CI/CD
 
-A beginner-friendly banking web app that demonstrates DevOps concepts through Jenkins CI/CD, multibranch pipelines, and containerized deployment using Docker.
+A frontend-only banking simulation built with HTML, CSS, and vanilla JavaScript, with localStorage persistence and a Node.js health-checked runtime for CI/CD.
 
----
+## Overview
 
-## 🎯 DevOps Objective
+This project demonstrates both:
 
-This project showcases modern DevOps practices in an academic setting. Rather than manual testing and deployment, we use **automated CI/CD pipelines** to:
+- Banking workflow features in a simple browser app.
+- DevOps practices using Jenkins multibranch pipelines and Docker.
 
-- **Validate code** automatically on every push
-- **Detect bugs early** before they reach production
-- **Ensure consistency** across development and deployment environments
-- **Streamline workflows** through Jenkins multibranch pipelines
-- **Demonstrate infrastructure as code** using Docker containers
+The app now includes Role-Based Access Control (RBAC) with three roles:
 
-By automating these processes, teams can focus on development while ensuring reliability and speed.
+- admin: full access.
+- manager: approval-only operational access.
+- viewer: read-only access.
 
----
+## Feature Summary
 
-## � How to Run
+- Role-based login and session handling.
+- Request-based banking flow where deposit, withdraw, and transfer create pending requests first.
+- Approved requests are executed in one centralized business-logic path.
+- User account management with freeze/unfreeze.
+- Transaction history with filtering.
+- Global controls (interest, undo, purge history) with role protection.
+- Client-side persistence via localStorage.
 
-### Local Development
+## RBAC Matrix
 
-1. **Install Node.js** (v14 or higher)
-2. **Run the application server**:
-   ```bash
-   node app/server.js
-   ```
-3. **Access the application**:
-   - Open browser: `http://localhost:5000`
-   - Check server health: `http://localhost:5000/health`
-   - Expected response: `OK` (plain text)
+| Action | admin | manager | viewer |
+|---|---|---|---|
+| CREATE_REQUEST | Yes | No | No |
+| APPROVE | Yes | Yes | No |
+| DELETE_USER | Yes | No | No |
+| FREEZE | Yes | No | No |
+| VIEW_ONLY | Yes | Yes | Yes |
 
-### Running Tests Locally
+## Demo Credentials
+
+- admin / admin123 -> admin
+- manager / manager123 -> manager
+- viewer / viewer123 -> viewer
+
+## How to Run
+
+### Local runtime
+
+1. Install Node.js v14+.
+2. Start the server:
+
+```bash
+node app/server.js
+```
+
+3. Open http://localhost:5000.
+4. Health endpoint: http://localhost:5000/health (expected response: OK).
+
+### Run health test locally
 
 ```bash
 node tests/test.js
 ```
 
-This script:
-- Spawns the Node.js server
-- Waits for startup
-- Calls the `/health` endpoint to validate
-- Reports success or failure
-- Cleans up the server process
-
-### Docker Deployment
+### Docker run
 
 ```bash
 docker build -t bankapp:latest .
@@ -54,9 +70,20 @@ docker run -p 80:80 bankapp:latest
 
 Access the app at: `http://localhost` (port 80)
 
+## Banking Flow
+
+The app behaves like a small banking backend simulator:
+
+1. A user action creates a request object.
+2. The request is stored in `bankPendingTransactions` with status `PENDING`.
+3. An authorized role approves or rejects the request.
+4. Only `executeApprovedTransaction(txn)` updates balances and writes transaction history.
+
+This keeps the UI and the business logic separate, and it prevents direct money movement from the front end.
+
 ---
 
-## �🔁 CI/CD Workflow
+## CI/CD Workflow
 
 The pipeline follows this automated flow:
 
@@ -212,14 +239,15 @@ Configure this URL in GitHub webhook settings: `Settings > Webhooks > Payload UR
 
 ---
 
-## 📋 Bank Application Features
+## Bank Application Features
 
 The core banking application includes:
 
 - ✅ Login with demo credentials
 - ✅ Balance persistence in localStorage (default Rs. 10,000)
-- ✅ Deposit and withdraw with validation
-- ✅ Overdraft protection
+- ✅ Deposit, withdraw, and transfer create requests first
+- ✅ Approved requests execute through a single balance-update function
+- ✅ Overdraft protection during execution
 - ✅ Transfer money to recipient
 - ✅ Add 2% interest on account balance
 - ✅ Undo last transaction
@@ -233,14 +261,15 @@ The core banking application includes:
 
 Use these hardcoded credentials for testing:
 
-- **Username**: `admin`
-- **Password**: `admin123`
+- **admin**: `admin` / `admin123`
+- **manager**: `manager` / `manager123`
+- **viewer**: `viewer` / `viewer123`
 
 ---
 
 ## 🏗️ Project Structure
 
-```
+```text
 .
 ├── app/                                  # Application code and static files
 │   ├── index.html                       # Login page
@@ -300,10 +329,13 @@ docker run -d --name bank-app -p 8080:80 bank-app
 
 | Key | Purpose |
 |-----|---------|
-| `isLoggedIn` | Session flag (true/false) |
-| `loggedInUser` | Currently logged-in username |
-| `bankBalance` | Current account balance |
-| `transactionHistory` | Array of transaction objects |
+| `bankUsersData` | User account data, balances, history, and freeze state |
+| `bankAuthUsers` | Login users with passwords and roles |
+| `bankPendingTransactions` | Pending, approved, and rejected request records |
+| `adminSession` | Session flag for the current login |
+| `currentUserRole` | Active role for RBAC checks |
+| `currentUsername` | Active username for the current session |
+| `lastGlobalAction` | Snapshot for undoing the last global action |
 
 ---
 
