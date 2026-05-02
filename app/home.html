@@ -19,9 +19,9 @@
     </div>
     <ul class="sidebar-menu" id="sidebarMenu">
       <li class="active" data-target="dashboard-section">Dashboard</li>
-      <li data-target="users-section">Users</li>
-      <li data-target="transactions-section">Transactions</li>
-      <li data-target="controls-section">System Controls</li>
+      <li id="menuUsers" data-target="users-section">Users</li>
+      <li id="menuTransactions" data-target="transactions-section">Transactions</li>
+      <li id="menuControls" data-target="controls-section">System Controls</li>
       <li id="logoutBtn" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">Logout</li>
     </ul>
   </nav>
@@ -123,6 +123,27 @@
     <!-- Controls Section -->
     <section id="controls-section" class="section">
       <div class="controls-grid">
+        <div class="control-card" id="approvalsCard">
+          <h3>Pending Transactions</h3>
+          <p>Approve or reject pending transaction requests.</p>
+          <div class="table-container" style="padding: 0; margin-bottom: 0; box-shadow: none;">
+            <table id="pending-transactions-table">
+              <thead>
+                <tr>
+                  <th>Created At</th>
+                  <th>Type</th>
+                  <th>User</th>
+                  <th>To User</th>
+                  <th>Amount</th>
+                  <th>Requested By</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="control-card">
           <h3>Apply Global Interest</h3>
           <p>Credit +2% interest to all user accounts based on their current balance iteratively.</p>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank of India | Admin Login</title>
+  <title>Bank of India | Role Login</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
@@ -18,11 +18,11 @@
         </svg>
       </div>
       <h1>Bank of India</h1>
-      <p class="subtext">Admin Control Panel</p>
+      <p class="subtext">Role-Based Control Panel</p>
 
       <form id="loginForm" class="stack" novalidate>
-        <label for="username">Admin ID</label>
-        <input id="username" name="username" type="text" placeholder="Enter Admin Username" required>
+        <label for="username">User ID</label>
+        <input id="username" name="username" type="text" placeholder="Enter Username" required>
 
         <label for="password">Password</label>
         <input id="password" name="password" type="password" placeholder="Enter Password" required>
@@ -33,8 +33,10 @@
       <p id="loginMessage" class="message" aria-live="polite"></p>
 
       <div class="demo-box" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc; border-radius: 4px; font-size: 13px; color: #555;">
-        <p style="margin-bottom: 5px;"><strong>Authorized Personnel Only</strong></p>
-        <span>ID: admin | Password: admin123</span>
+        <p style="margin-bottom: 5px;"><strong>Demo Users</strong></p>
+        <div>admin / admin123 (admin)</div>
+        <div>manager / manager123 (manager)</div>
+        <div>viewer / viewer123 (viewer)</div>
       </div>
     </section>
   </main>

@@ -1,27 +1,86 @@
 // --- Constants & Keys ---
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = 'admin123';
 const USERS_KEY = 'bankUsersData';
+const AUTH_USERS_KEY = 'bankAuthUsers';
+const PENDING_TX_KEY = 'bankPendingTransactions';
 const ADMIN_SESSION_KEY = 'adminSession';
+const CURRENT_USER_ROLE_KEY = 'currentUserRole';
+const CURRENT_USER_NAME_KEY = 'currentUsername';
 const LAST_GLOBAL_KEY = 'lastGlobalAction'; // Store info for undoing
 const FORCE_ERROR = false; // Set to true to simulate CI/CD failure during demo
+
+const ROLES = {
+  ADMIN: 'admin',
+  MANAGER: 'manager',
+  VIEWER: 'viewer'
+};
+
+const PERMISSIONS = {
+  CREATE_TRANSACTION: 'CREATE_TRANSACTION',
+  APPROVE_TRANSACTION: 'APPROVE_TRANSACTION',
+  DELETE_USER: 'DELETE_USER',
+  FREEZE_ACCOUNT: 'FREEZE_ACCOUNT',
+  VIEW_ONLY: 'VIEW_ONLY'
+};
+
+const ROLE_PERMISSIONS = {
+  [ROLES.ADMIN]: {
+    [PERMISSIONS.CREATE_TRANSACTION]: true,
+    [PERMISSIONS.APPROVE_TRANSACTION]: true,
+    [PERMISSIONS.DELETE_USER]: true,
+    [PERMISSIONS.FREEZE_ACCOUNT]: true,
+    [PERMISSIONS.VIEW_ONLY]: true
+  },
+  [ROLES.MANAGER]: {
+    [PERMISSIONS.CREATE_TRANSACTION]: false,
+    [PERMISSIONS.APPROVE_TRANSACTION]: true,
+    [PERMISSIONS.DELETE_USER]: false,
+    [PERMISSIONS.FREEZE_ACCOUNT]: false,
+    [PERMISSIONS.VIEW_ONLY]: true
+  },
+  [ROLES.VIEWER]: {
+    [PERMISSIONS.CREATE_TRANSACTION]: false,
+    [PERMISSIONS.APPROVE_TRANSACTION]: false,
+    [PERMISSIONS.DELETE_USER]: false,
+    [PERMISSIONS.FREEZE_ACCOUNT]: false,
+    [PERMISSIONS.VIEW_ONLY]: true
+  }
+};
 
 // --- Initialization ---
 function initData() {
   if (!localStorage.getItem(USERS_KEY)) {
-    // Seed with empty users array, or create a demo user
+    // Seed demo account/balance data
     const defaultData = [
-      { username: 'user1', balance: 10000, transactions: [] },
-      { username: 'testuser', balance: 500, transactions: [] }
+      { username: 'admin', balance: 10000, transactions: [], isFrozen: false },
+      { username: 'manager', balance: 5000, transactions: [], isFrozen: false },
+      { username: 'viewer', balance: 2000, transactions: [], isFrozen: false },
+      { username: 'user1', balance: 10000, transactions: [], isFrozen: false },
+      { username: 'testuser', balance: 500, transactions: [], isFrozen: false }
     ];
     localStorage.setItem(USERS_KEY, JSON.stringify(defaultData));
+  }
+
+  if (!localStorage.getItem(AUTH_USERS_KEY)) {
+    // Demo auth users with roles for RBAC
+    const demoAuthUsers = [
+      { username: 'admin', password: 'admin123', role: ROLES.ADMIN },
+      { username: 'manager', password: 'manager123', role: ROLES.MANAGER },
+      { username: 'viewer', password: 'viewer123', role: ROLES.VIEWER }
+    ];
+    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(demoAuthUsers));
+  }
+
+  if (!localStorage.getItem(PENDING_TX_KEY)) {
+    localStorage.setItem(PENDING_TX_KEY, JSON.stringify([]));
   }
 }
 
 // --- LocalStorage Helpers ---
 function getUsers() {
   try {
-    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+    const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+    // Keep backward compatibility for old entries without isFrozen flag
+    return users.map((u) => ({ ...u, isFrozen: Boolean(u.isFrozen) }));
   } catch (e) {
     return [];
   }
@@ -29,6 +88,26 @@ function getUsers() {
 
 function saveUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function getAuthUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_USERS_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function getPendingTransactions() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_TX_KEY)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function savePendingTransactions(pending) {
+  localStorage.setItem(PENDING_TX_KEY, JSON.stringify(pending));
 }
 
 function roundToTwo(num) {
@@ -54,20 +133,44 @@ function createTxRecord(type, amount, balanceAfter, details = '') {
   };
 }
 
-// --- Authentication ---
+// --- Authentication + RBAC ---
+function getCurrentRole() {
+  return localStorage.getItem(CURRENT_USER_ROLE_KEY) || ROLES.VIEWER;
+}
+
+function getCurrentUsername() {
+  return localStorage.getItem(CURRENT_USER_NAME_KEY) || '';
+}
+
+function hasPermission(action) {
+  const role = getCurrentRole();
+  const permissionsForRole = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS[ROLES.VIEWER];
+  return Boolean(permissionsForRole[action]);
+}
+
+function denyAccess() {
+  alert('Access Denied');
+}
+
 function loginAdmin(username, password) {
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
+  const authUsers = getAuthUsers();
+  const found = authUsers.find((u) => u.username === username && u.password === password);
+
+  if (found) {
     localStorage.setItem(ADMIN_SESSION_KEY, 'true');
-    localStorage.setItem('role', 'admin');
+    localStorage.setItem(CURRENT_USER_ROLE_KEY, found.role);
+    localStorage.setItem(CURRENT_USER_NAME_KEY, found.username);
     window.location.href = 'home.html';
     return true;
   }
+
   return false;
 }
 
 function logoutAdmin() {
   localStorage.removeItem(ADMIN_SESSION_KEY);
-  localStorage.removeItem('role');
+  localStorage.removeItem(CURRENT_USER_ROLE_KEY);
+  localStorage.removeItem(CURRENT_USER_NAME_KEY);
   window.location.href = 'index.html';
 }
 
@@ -82,6 +185,63 @@ function showMessage(id, text, type) {
     el.className = `message ${type}`;
     setTimeout(() => { if(el.textContent===text) el.textContent=''; el.className='message'; }, 3000);
   }
+}
+
+function setRoleTextInHeader() {
+  const adminNameEl = document.getElementById('adminName');
+  if (!adminNameEl) return;
+  const uname = getCurrentUsername() || 'User';
+  adminNameEl.textContent = `${uname} (${getCurrentRole()})`;
+}
+
+function applyRoleBasedUIState() {
+  const role = getCurrentRole();
+
+  const usersMenu = document.getElementById('menuUsers');
+  const controlsMenu = document.getElementById('menuControls');
+  const showAddUserBtn = document.getElementById('showAddUserBtn');
+
+  const interestBtn = document.getElementById('applyInterestBtn');
+  const undoBtn = document.getElementById('undoGlobalBtn');
+  const clearBtn = document.getElementById('clearAllHistoryBtn');
+
+  const approvalsCard = document.getElementById('approvalsCard');
+  const controlsSection = document.getElementById('controls-section');
+
+  if (role === ROLES.ADMIN) {
+    if (usersMenu) usersMenu.style.display = '';
+    if (controlsMenu) controlsMenu.style.display = '';
+    if (showAddUserBtn) showAddUserBtn.disabled = false;
+    if (interestBtn) interestBtn.disabled = false;
+    if (undoBtn) undoBtn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+    if (approvalsCard) approvalsCard.style.display = '';
+    return;
+  }
+
+  if (role === ROLES.MANAGER) {
+    if (usersMenu) usersMenu.style.display = 'none';
+    if (controlsMenu) controlsMenu.style.display = '';
+    if (showAddUserBtn) showAddUserBtn.disabled = true;
+    if (interestBtn) interestBtn.style.display = 'none';
+    if (undoBtn) undoBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (approvalsCard) approvalsCard.style.display = '';
+
+    // Ensure manager lands on permitted section if currently on hidden section
+    const activeSection = document.querySelector('.section.active');
+    if (activeSection && activeSection.id === 'users-section') {
+      document.querySelectorAll('.section').forEach((sec) => sec.classList.remove('active'));
+      document.getElementById('controls-section')?.classList.add('active');
+    }
+    return;
+  }
+
+  // Viewer: read-only. Keep dashboard + transaction history only.
+  if (usersMenu) usersMenu.style.display = 'none';
+  if (controlsMenu) controlsMenu.style.display = 'none';
+  if (showAddUserBtn) showAddUserBtn.disabled = true;
+  if (controlsSection) controlsSection.style.display = 'none';
 }
 
 // --- UI Logic: Navigation ---
@@ -176,6 +336,7 @@ function renderUsersTable(filterText = '') {
     : users;
 
   filteredUsers.forEach(u => {
+    const freezeLabel = u.isFrozen ? 'Unfreeze' : 'Freeze';
     const tr = document.createElement('tr');
     const txCount = u.transactions ? u.transactions.length : 0;
     tr.innerHTML = `
@@ -184,6 +345,7 @@ function renderUsersTable(filterText = '') {
       <td>${txCount}</td>
       <td>
         <button class="ghost-btn manage-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px;">Manage Balance</button>
+        <button class="accent-btn freeze-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">${freezeLabel}</button>
         <button class="danger-btn del-btn" data-username="${u.username}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Delete</button>
       </td>
     `;
@@ -194,9 +356,19 @@ function renderUsersTable(filterText = '') {
   document.querySelectorAll('.manage-btn').forEach(btn => {
     btn.addEventListener('click', (e) => openManageModal(e.target.dataset.username));
   });
+  document.querySelectorAll('.freeze-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => toggleFreezeAccount(e.target.dataset.username));
+  });
   document.querySelectorAll('.del-btn').forEach(btn => {
     btn.addEventListener('click', (e) => openDeleteModal(e.target.dataset.username));
   });
+
+  // Non-admin users should not be able to use account management controls.
+  if (getCurrentRole() !== ROLES.ADMIN) {
+    tbody.querySelectorAll('.manage-btn, .freeze-btn, .del-btn').forEach((btn) => {
+      btn.disabled = true;
+    });
+  }
 }
 
 // --- Modals ---
@@ -212,6 +384,11 @@ function closeAddUserModal() {
 }
 
 function addUser() {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return;
+  }
+
   const uname = document.getElementById('newUsername').value.trim();
   const initialBal = Number(document.getElementById('newInitialBalance').value) || 0;
 
@@ -229,7 +406,8 @@ function addUser() {
   users.push({
     username: uname,
     balance: roundToTwo(initialBal),
-    transactions: initialBal > 0 ? [createTxRecord('Deposit', initialBal, initialBal, 'Initial Deposit')] : []
+    transactions: initialBal > 0 ? [createTxRecord('Deposit', initialBal, initialBal, 'Initial Deposit')] : [],
+    isFrozen: false
   });
 
   saveUsers(users);
@@ -257,6 +435,11 @@ function closeManageModal() {
 }
 
 function applyManageUser() {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return;
+  }
+
   if(!selectedUserForAction) return;
   const action = document.getElementById('manageAction').value;
   let amount = Number(document.getElementById('manageAmount').value);
@@ -272,16 +455,21 @@ function applyManageUser() {
   const user = users.find(u => u.username === selectedUserForAction);
   if(!user) return;
 
+  if (user.isFrozen) {
+    showMessage('manageUserMsg', 'Account is frozen. Transaction not allowed.', 'error');
+    return;
+  }
+
   if (action === 'add') {
-    user.balance = roundToTwo(user.balance + amount);
-    user.transactions.unshift(createTxRecord('Admin Mod', amount, user.balance, 'Admin Added Money'));
+    deposit(user.username, amount);
+    closeManageModal();
+    renderPendingTransactions();
+    return;
   } else if (action === 'deduct') {
-    if(amount > user.balance) {
-      showMessage('manageUserMsg', 'Insufficient balance for deduction', 'error');
-      return;
-    }
-    user.balance = roundToTwo(user.balance - amount);
-    user.transactions.unshift(createTxRecord('Admin Mod', -amount, user.balance, 'Admin Deducted Money'));
+    withdraw(user.username, amount);
+    closeManageModal();
+    renderPendingTransactions();
+    return;
   } else if (action === 'set') {
     const diff = amount - user.balance;
     if(diff !== 0) {
@@ -308,11 +496,35 @@ function closeDeleteModal() {
 }
 
 function executeDeleteUser() {
+  if (!hasPermission(PERMISSIONS.DELETE_USER)) {
+    denyAccess();
+    return;
+  }
+
   if(!selectedUserForAction) return;
   const users = getUsers();
   const newUsers = users.filter(u => u.username !== selectedUserForAction);
   saveUsers(newUsers);
   closeDeleteModal();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  renderDashboard();
+}
+
+function toggleFreezeAccount(username) {
+  if (!hasPermission(PERMISSIONS.FREEZE_ACCOUNT)) {
+    denyAccess();
+    return;
+  }
+
+  const users = getUsers();
+  const user = users.find((u) => u.username === username);
+  if (!user) return;
+
+  user.isFrozen = !user.isFrozen;
+  const actionText = user.isFrozen ? 'Account Frozen' : 'Account Unfrozen';
+  user.transactions.unshift(createTxRecord('System', 0, user.balance, actionText));
+
+  saveUsers(users);
   renderUsersTable(document.getElementById('searchUserInput')?.value || '');
   renderDashboard();
 }
@@ -373,8 +585,195 @@ function renderAllTransactions() {
   });
 }
 
+function renderPendingTransactions() {
+  const tbody = document.querySelector('#pending-transactions-table tbody');
+  if (!tbody) return;
+
+  const pending = getPendingTransactions().sort((a, b) => b.createdAt - a.createdAt);
+  tbody.innerHTML = '';
+
+  pending.forEach((tx) => {
+    const tr = document.createElement('tr');
+    const canApprove = hasPermission(PERMISSIONS.APPROVE_TRANSACTION);
+    const actionCol = canApprove
+      ? `<button class="accent-btn approve-btn" data-id="${tx.id}" style="padding: 6px 10px; font-size:13px;">Approve</button>
+         <button class="danger-btn reject-btn" data-id="${tx.id}" style="padding: 6px 10px; font-size:13px; margin-left: 5px;">Reject</button>`
+      : '<span style="color:#666;">No permission</span>';
+
+    tr.innerHTML = `
+      <td>${new Date(tx.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+      <td>${tx.type}</td>
+      <td>${tx.username}</td>
+      <td>${tx.toUsername || '-'}</td>
+      <td>${formatCurrency(tx.amount)}</td>
+      <td>${tx.createdBy}</td>
+      <td>${actionCol}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.querySelectorAll('.approve-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => approveTransaction(e.target.dataset.id, 'approve'));
+  });
+  document.querySelectorAll('.reject-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => approveTransaction(e.target.dataset.id, 'reject'));
+  });
+}
+
+function queuePendingTransaction(type, username, amount, toUsername = '') {
+  const pending = getPendingTransactions();
+  pending.push({
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    username,
+    toUsername,
+    amount: roundToTwo(amount),
+    status: 'PENDING',
+    createdBy: getCurrentUsername() || 'system',
+    createdAt: Date.now()
+  });
+  savePendingTransactions(pending);
+}
+
+// Required by task: permission-protected transaction actions
+function deposit(username, amount) {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return false;
+  }
+
+  const users = getUsers();
+  const user = users.find((u) => u.username === username);
+  if (!user || user.isFrozen || !amount || amount <= 0) {
+    return false;
+  }
+
+  queuePendingTransaction('Deposit', username, amount);
+  showMessage('controlMessage', 'Deposit request submitted for approval.', 'success');
+  return true;
+}
+
+function withdraw(username, amount) {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return false;
+  }
+
+  const users = getUsers();
+  const user = users.find((u) => u.username === username);
+  if (!user || user.isFrozen || !amount || amount <= 0) {
+    return false;
+  }
+
+  if (amount > user.balance) {
+    return false;
+  }
+
+  queuePendingTransaction('Withdraw', username, amount);
+  showMessage('controlMessage', 'Withdraw request submitted for approval.', 'success');
+  return true;
+}
+
+function transfer(username, toUsername, amount) {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return false;
+  }
+
+  if (!toUsername || username === toUsername || !amount || amount <= 0) {
+    return false;
+  }
+
+  const users = getUsers();
+  const fromUser = users.find((u) => u.username === username);
+  const toUser = users.find((u) => u.username === toUsername);
+
+  if (!fromUser || !toUser || fromUser.isFrozen || toUser.isFrozen || amount > fromUser.balance) {
+    return false;
+  }
+
+  queuePendingTransaction('Transfer', username, amount, toUsername);
+  showMessage('controlMessage', 'Transfer request submitted for approval.', 'success');
+  return true;
+}
+
+function approveTransaction(transactionId, decision = 'approve') {
+  if (!hasPermission(PERMISSIONS.APPROVE_TRANSACTION)) {
+    denyAccess();
+    return;
+  }
+
+  const pending = getPendingTransactions();
+  const txIndex = pending.findIndex((tx) => tx.id === transactionId);
+  if (txIndex === -1) return;
+
+  const tx = pending[txIndex];
+
+  if (decision === 'reject') {
+    pending.splice(txIndex, 1);
+    savePendingTransactions(pending);
+    showMessage('controlMessage', 'Transaction rejected.', 'success');
+    renderPendingTransactions();
+    return;
+  }
+
+  const users = getUsers();
+  const sourceUser = users.find((u) => u.username === tx.username);
+  if (!sourceUser || sourceUser.isFrozen) {
+    pending.splice(txIndex, 1);
+    savePendingTransactions(pending);
+    renderPendingTransactions();
+    return;
+  }
+
+  if (tx.type === 'Deposit') {
+    sourceUser.balance = roundToTwo(sourceUser.balance + tx.amount);
+    sourceUser.transactions.unshift(createTxRecord('Deposit', tx.amount, sourceUser.balance, 'Approved Deposit'));
+  } else if (tx.type === 'Withdraw') {
+    if (tx.amount > sourceUser.balance) {
+      pending.splice(txIndex, 1);
+      savePendingTransactions(pending);
+      showMessage('controlMessage', 'Withdraw failed during approval (insufficient balance).', 'error');
+      renderPendingTransactions();
+      return;
+    }
+    sourceUser.balance = roundToTwo(sourceUser.balance - tx.amount);
+    sourceUser.transactions.unshift(createTxRecord('Withdraw', -tx.amount, sourceUser.balance, 'Approved Withdraw'));
+  } else if (tx.type === 'Transfer') {
+    const targetUser = users.find((u) => u.username === tx.toUsername);
+    if (!targetUser || targetUser.isFrozen || tx.amount > sourceUser.balance) {
+      pending.splice(txIndex, 1);
+      savePendingTransactions(pending);
+      showMessage('controlMessage', 'Transfer failed during approval.', 'error');
+      renderPendingTransactions();
+      return;
+    }
+
+    sourceUser.balance = roundToTwo(sourceUser.balance - tx.amount);
+    targetUser.balance = roundToTwo(targetUser.balance + tx.amount);
+
+    sourceUser.transactions.unshift(createTxRecord('Transfer', -tx.amount, sourceUser.balance, `Approved transfer to ${targetUser.username}`));
+    targetUser.transactions.unshift(createTxRecord('Transfer', tx.amount, targetUser.balance, `Approved transfer from ${sourceUser.username}`));
+  }
+
+  pending.splice(txIndex, 1);
+  saveUsers(users);
+  savePendingTransactions(pending);
+
+  showMessage('controlMessage', 'Transaction approved successfully.', 'success');
+  renderDashboard();
+  renderUsersTable(document.getElementById('searchUserInput')?.value || '');
+  renderAllTransactions();
+  renderPendingTransactions();
+}
+
 // --- System Controls ---
 function applyGlobalInterest() {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return;
+  }
+
   const users = getUsers();
   if(users.length === 0) {
     showMessage('controlMessage', 'No users to add interest to.', 'error');
@@ -408,6 +807,11 @@ function applyGlobalInterest() {
 }
 
 function undoGlobalAction() {
+  if (!hasPermission(PERMISSIONS.CREATE_TRANSACTION)) {
+    denyAccess();
+    return;
+  }
+
   const lastAction = localStorage.getItem(LAST_GLOBAL_KEY);
   if(!lastAction) {
     showMessage('controlMessage', 'No system action available to undo.', 'error');
@@ -428,6 +832,11 @@ function undoGlobalAction() {
 }
 
 function purgeData() {
+  if (!hasPermission(PERMISSIONS.DELETE_USER)) {
+    denyAccess();
+    return;
+  }
+
   if(confirm("CRITICAL: You are about to clear transaction histories for EVERY user. This cannot be reversed. Proceed?")) {
     const users = getUsers();
     users.forEach(u => {
@@ -447,6 +856,8 @@ function setupLoginPage() {
   const loginForm = document.getElementById('loginForm');
   if (!loginForm) return;
 
+  initData();
+
   if (isAdminLoggedIn()) {
     window.location.href = 'home.html';
     return;
@@ -458,12 +869,7 @@ function setupLoginPage() {
     const p = document.getElementById('password').value.trim();
 
     if (!loginAdmin(u, p)) {
-       // if it's the old 'user123' show special error
-       if(u !== ADMIN_USER && p !== ADMIN_PASS && u !== '') {
-           showMessage('loginMessage', 'Access Denied. Admin privileges required.', 'error');
-       } else {
-           showMessage('loginMessage', 'Invalid Admin Credentials', 'error');
-       }
+      showMessage('loginMessage', 'Invalid credentials', 'error');
     }
   });
 }
@@ -478,10 +884,13 @@ function setupAdminPage() {
   }
 
   initData();
+  setRoleTextInHeader();
   setupNavigation();
+  applyRoleBasedUIState();
   updateSystemTime();
   setInterval(updateSystemTime, 1000);
   renderDashboard();
+  renderPendingTransactions();
 
   // Navigation Logic specific to User interactions
   const searchUserInput = document.getElementById('searchUserInput');
