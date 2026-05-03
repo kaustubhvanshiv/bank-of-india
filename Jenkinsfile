@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'Node 20 LTS'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -13,12 +17,6 @@ pipeline {
         }
 
         stage('Run Test Script') {
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                    reuseNode true
-                }
-            }
             steps {
                 echo '=========================================='
                 echo 'Stage: Run Test Script'
