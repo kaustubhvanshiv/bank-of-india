@@ -1,22 +1,22 @@
-.analytics-main{padding:20px; margin-left:200px}
-.topbar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e0e0e0}
-.topbar h2{margin:0; color:#003A8F}
-.topbar div{font-size:13px; color:#666}
-.analytics-controls{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap}
-.analytics-controls button{margin:0}
-.filters{background:#fff; padding:14px; border-radius:6px; margin-bottom:20px; box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.filters .filter-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-.filters label{font-size:14px; color:var(--muted)}
-.metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:18px}
-.metric-card{background:var(--card-bg); border-radius:8px; padding:12px; box-shadow:0 1px 6px rgba(0,0,0,0.04)}
-.metric-card h4{margin:0 0 6px 0; font-size:13px; color:var(--muted)}
-.metric-value{font-size:20px; font-weight:700}
-.charts-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
-.chart-card{background:var(--card-bg); padding:12px; border-radius:8px; min-height:260px}
-.chart-card h4{margin:0 0 8px 0; font-size:14px}
-.no-data{padding:20px; text-align:center; color:var(--muted)}
+.analytics-main {
+  max-width: 1400px;
+  margin: 0 auto;
+}
 
-@media(max-width:800px){
-  .analytics-main{margin-left:0;padding:14px}
-  .topbar{flex-direction:column; align-items:flex-start}
+.chart-card canvas {
+  max-height: 320px;
+  width: 100% !important;
+}
+
+.no-data {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

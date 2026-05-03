@@ -1003,17 +1003,6 @@ function setRoleTextInHeader() {
 function applyRoleBasedUIState() {
   const role = getCurrentRole();
 
-  // Hide all sections by default
-  const sections = {
-    dashboard: document.getElementById('dashboard-section'),
-    requests: document.getElementById('requests-section'),
-    approvals: document.getElementById('approvals-section'),
-    users: document.getElementById('users-section'),
-    logs: document.getElementById('logs-section'),
-    transactions: document.getElementById('transactions-section'),
-    controls: document.getElementById('controls-section')
-  };
-
   const menus = {
     dashboard: document.getElementById('menuDashboard'),
     requests: document.getElementById('menuRequests'),
@@ -1021,20 +1010,15 @@ function applyRoleBasedUIState() {
     users: document.getElementById('menuUsers'),
     logs: document.getElementById('menuLogs'),
     transactions: document.getElementById('menuTransactions'),
-    controls: document.getElementById('menuControls')
+    controls: document.getElementById('menuControls'),
+    analytics: document.getElementById('menuAnalytics')
   };
 
-  Object.values(sections).forEach(sec => {
-    if (sec) sec.style.display = 'none';
-  });
-
   // Show dashboard for all roles
-  if (sections.dashboard) sections.dashboard.style.display = 'block';
   if (menus.dashboard) menus.dashboard.style.display = '';
 
   // VIEWER: Request Account + Request Transaction
   if (role === ROLES.VIEWER) {
-    if (sections.requests) sections.requests.style.display = 'block';
     if (menus.requests) menus.requests.style.display = '';
     
     // Hide everything else
@@ -1042,12 +1026,13 @@ function applyRoleBasedUIState() {
     if (menus.users) menus.users.style.display = 'none';
     if (menus.logs) menus.logs.style.display = 'none';
     if (menus.controls) menus.controls.style.display = 'none';
+    if (menus.analytics) menus.analytics.style.display = 'none';
   }
 
   // MANAGER: Pending Requests + Pending Transactions
   if (role === ROLES.MANAGER) {
-    if (sections.approvals) sections.approvals.style.display = 'block';
     if (menus.approvals) menus.approvals.style.display = '';
+    if (menus.analytics) menus.analytics.style.display = '';
 
     // Hide other sections
     if (menus.requests) menus.requests.style.display = 'none';
@@ -1058,17 +1043,13 @@ function applyRoleBasedUIState() {
 
   // ADMIN: Everything (Users, Logs, Transactions, Controls)
   if (role === ROLES.ADMIN) {
-    if (sections.users) sections.users.style.display = 'block';
-    if (sections.logs) sections.logs.style.display = 'block';
-    if (sections.transactions) sections.transactions.style.display = 'block';
-    if (sections.controls) sections.controls.style.display = 'block';
-
     if (menus.users) menus.users.style.display = '';
     if (menus.logs) menus.logs.style.display = '';
     if (menus.transactions) menus.transactions.style.display = '';
     if (menus.controls) menus.controls.style.display = '';
+    if (menus.analytics) menus.analytics.style.display = '';
 
-    // Hide request/approval sections for admin
+    // Hide request/approval sections for admin (optional based on your needs)
     if (menus.requests) menus.requests.style.display = 'none';
     if (menus.approvals) menus.approvals.style.display = 'none';
   }
@@ -1088,7 +1069,14 @@ function setupNavigation() {
       const target = item.dataset.target;
       sections.forEach(sec => sec.classList.remove('active'));
       const targetSection = document.getElementById(target);
-      if (targetSection) targetSection.classList.add('active');
+      if (targetSection) {
+        targetSection.classList.add('active');
+        // Update topbar title
+        const topbarTitle = document.getElementById('topbar-title');
+        if (topbarTitle) {
+          topbarTitle.textContent = item.textContent;
+        }
+      }
 
       // Refresh data for specific views
       if (target === 'requests-section') {

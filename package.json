@@ -1,0 +1,11 @@
+{
+  "name": "bank-of-india",
+  "version": "1.0.0",
+  "description": "Bank Application with RBAC and CI/CD",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "node app/server.js",
+    "test": "node tests/test.js"
+  },
+  "dependencies": {}
+}

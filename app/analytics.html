@@ -3,114 +3,127 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Bank Analytics</title>
-  <link rel="stylesheet" href="analytics.css">
+  <title>Bank of India | Intelligence</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="analytics.css">
 </head>
-<body class="page-analytics">
+<body class="page-admin page-analytics">
   <nav class="sidebar">
     <div class="sidebar-header">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 60px; margin: 0 auto 10px;">
-        <circle cx="50" cy="50" r="45" fill="#FFD700" />
-        <text x="50%" y="55%" text-anchor="middle" font-size="32" font-weight="bold" fill="#003A8F" font-family="Arial, sans-serif">BOI</text>
+      <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 12px;">
+        <defs>
+          <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#312e81;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <rect x="10" y="10" width="80" height="80" rx="20" fill="url(#logoGradient)" />
+        <text x="50%" y="62%" text-anchor="middle" font-size="28" font-weight="700" fill="white" font-family="'Outfit', sans-serif">BOI</text>
       </svg>
-      <h3>Analytics</h3>
+      <h3>Intelligence</h3>
     </div>
     <ul class="sidebar-menu" id="sidebarMenuAnalytics">
-      <li><a href="home.html" style="color:inherit; text-decoration:none; display:block; width:100%; height:100%;">← Back to Dashboard</a></li>
-      <li id="logoutBtnAnalytics" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">Logout</li>
+      <li><a href="home.html" style="color:inherit; text-decoration:none; display:flex; align-items:center; width:100%;">← Return to Workspace</a></li>
+      <li id="logoutBtnAnalytics" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px; color: var(--danger);">End Session</li>
     </ul>
   </nav>
 
   <main class="main-content analytics-main">
-    <div class="topbar">
-      <h2 id="topbar-title-analytics">Analytics Dashboard</h2>
-      <div><span id="adminNameAnalytics">Admin</span> | Time: <span id="systemTimeAnalytics"></span></div>
-    </div>
+    <header class="topbar">
+      <h2 id="topbar-title-analytics">System Analytics</h2>
+      <div class="info"><span id="adminNameAnalytics">Admin</span> | <span id="systemTimeAnalytics"></span></div>
+    </header>
 
-    <div class="analytics-controls">
-      <button id="refreshBtn" class="accent-btn">Refresh Analytics</button>
+    <div class="analytics-controls" style="display: flex; gap: 12px; margin-bottom: 32px;">
+      <button id="refreshBtn" class="accent-btn">Refresh Data</button>
       <button id="exportJsonBtn" class="ghost-btn">Export JSON</button>
-      <button id="downloadChartsBtn" class="ghost-btn">Download Charts</button>
+      <button id="downloadChartsBtn" class="ghost-btn">Save Charts</button>
     </div>
 
-    <section class="filters">
-      <div class="filter-row">
-        <label>From: <input type="date" id="filterStart"></label>
-        <label>To: <input type="date" id="filterEnd"></label>
-        <label>Type:
+    <section class="filters table-container" style="padding: 24px; margin-bottom: 32px;">
+      <div class="filter-row" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-end;">
+        <div class="input-group" style="flex: 1; min-width: 160px;">
+          <label>From Date</label>
+          <input type="date" id="filterStart">
+        </div>
+        <div class="input-group" style="flex: 1; min-width: 160px;">
+          <label>To Date</label>
+          <input type="date" id="filterEnd">
+        </div>
+        <div class="input-group" style="flex: 1; min-width: 160px;">
+          <label>Transaction Type</label>
           <select id="filterType">
-            <option value="ALL">All</option>
-            <option value="deposit">Deposit</option>
-            <option value="withdraw">Withdraw</option>
-            <option value="transfer">Transfer</option>
+            <option value="ALL">All Operations</option>
+            <option value="deposit">Deposits</option>
+            <option value="withdraw">Withdrawals</option>
+            <option value="transfer">Transfers</option>
           </select>
-        </label>
-        <label>Status:
+        </div>
+        <div class="input-group" style="flex: 1; min-width: 160px;">
+          <label>Approval Status</label>
           <select id="filterStatus">
-            <option value="ALL">All</option>
+            <option value="ALL">All Statuses</option>
             <option value="APPROVED">Approved</option>
             <option value="PENDING">Pending</option>
             <option value="REJECTED">Rejected</option>
           </select>
-        </label>
+        </div>
       </div>
     </section>
 
-    <section class="metrics" id="metricsArea">
-      <div class="metric-card">
-        <h4>Total Users</h4>
-        <div class="metric-value" id="mTotalUsers">0</div>
+    <section class="metrics dashboard-cards" id="metricsArea">
+      <div class="card-stat">
+        <h3>System Users</h3>
+        <div class="value" id="mTotalUsers">0</div>
       </div>
-      <div class="metric-card">
-        <h4>Total Transactions</h4>
-        <div class="metric-value" id="mTotalTxs">0</div>
+      <div class="card-stat">
+        <h3>Total Throughput</h3>
+        <div class="value" id="mTotalTxs">0</div>
       </div>
-      <div class="metric-card">
-        <h4>Total Deposits</h4>
-        <div class="metric-value" id="mTotalDeposits">₹0.00</div>
+      <div class="card-stat">
+        <h3>Total Deposits</h3>
+        <div class="value" id="mTotalDeposits">₹0.00</div>
       </div>
-      <div class="metric-card">
-        <h4>Total Withdrawals</h4>
-        <div class="metric-value" id="mTotalWithdrawals">₹0.00</div>
+      <div class="card-stat">
+        <h3>Total Withdrawals</h3>
+        <div class="value" id="mTotalWithdrawals">₹0.00</div>
       </div>
-      <div class="metric-card">
-        <h4>Total Transfers</h4>
-        <div class="metric-value" id="mTotalTransfers">₹0.00</div>
+      <div class="card-stat">
+        <h3>Inter-Account Flow</h3>
+        <div class="value" id="mTotalTransfers">₹0.00</div>
       </div>
-      <div class="metric-card">
-        <h4>Pending Requests</h4>
-        <div class="metric-value" id="mPendingCount">0</div>
+      <div class="card-stat">
+        <h3>Pending Queue</h3>
+        <div class="value" id="mPendingCount">0</div>
       </div>
     </section>
 
-    <section class="charts-grid" id="chartsGrid">
-      <div class="chart-card">
-        <h4>Transaction Type Distribution</h4>
+    <section class="charts-grid" id="chartsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 32px; margin-top: 32px;">
+      <div class="table-container chart-card" style="padding: 32px;">
+        <h4 style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">Type Distribution</h4>
         <canvas id="chartType"></canvas>
       </div>
-      <div class="chart-card">
-        <h4>Daily Transactions Trend</h4>
+      <div class="table-container chart-card" style="padding: 32px;">
+        <h4 style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">Daily Volume Trend</h4>
         <canvas id="chartTrend"></canvas>
       </div>
-      <div class="chart-card">
-        <h4>User Activity (Top 5)</h4>
+      <div class="table-container chart-card" style="padding: 32px;">
+        <h4 style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">Top 5 Active Accounts</h4>
         <canvas id="chartUsers"></canvas>
       </div>
-      <div class="chart-card">
-        <h4>Approval Status Overview</h4>
+      <div class="table-container chart-card" style="padding: 32px;">
+        <h4 style="margin-bottom: 24px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;">Lifecycle Status</h4>
         <canvas id="chartStatus"></canvas>
       </div>
     </section>
 
-    <div id="noDataMessage" class="no-data" style="display:none;">No data available for the selected filters.</div>
+    <div id="noDataMessage" class="message" style="display:none; text-align: center; margin-top: 40px; font-size: 18px;">No intelligence data available for the selected parameters.</div>
 
   </main>
 
   <script src="script.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>
-    // Update time and user info for analytics page
     function updateAnalyticsHeader() {
       const timeEl = document.getElementById('systemTimeAnalytics');
       if (timeEl) {
@@ -127,13 +140,11 @@
       updateAnalyticsHeader();
       setInterval(updateAnalyticsHeader, 1000);
       
-      // Logout handler
       const logoutBtn = document.getElementById('logoutBtnAnalytics');
       if (logoutBtn && typeof logoutAdmin === 'function') {
         logoutBtn.addEventListener('click', logoutAdmin);
       }
       
-      // Check authentication
       if (typeof isAdminLoggedIn === 'function' && !isAdminLoggedIn()) {
         window.location.href = 'index.html';
       }

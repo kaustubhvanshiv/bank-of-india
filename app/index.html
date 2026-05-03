@@ -1,44 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank of India | Role Login</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bank of India | Secure Login</title>
   <link rel="stylesheet" href="style.css">
-  <script src="script.js" defer></script>
 </head>
 <body class="page-login">
   <main class="login-shell">
-    <section class="login-card">
-      <div class="logo-container">
-        <!-- SVG Placeholder for Bank Logo -->
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="45" fill="#FFD700" />
-          <text x="50%" y="55%" text-anchor="middle" font-size="32" font-weight="bold" fill="#003A8F" font-family="Arial, sans-serif">BOI</text>
-        </svg>
+    <div class="login-card">
+      <!-- Branding Side -->
+      <div class="login-branding">
+        <div class="logo-container">
+          <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="logoGradientLogin" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#logoGradientLogin)" />
+            <text x="50%" y="62%" text-anchor="middle" font-size="32" font-weight="800" fill="white" font-family="'Outfit', sans-serif">BOI</text>
+          </svg>
+        </div>
+        <h1>Bank of India</h1>
+        <p class="subtext">Secure Role-Based Access Control System</p>
       </div>
-      <h1>Bank of India</h1>
-      <p class="subtext">Role-Based Control Panel</p>
 
-      <form id="loginForm" class="stack" novalidate>
-        <label for="username">User ID</label>
-        <input id="username" name="username" type="text" placeholder="Enter Username" required>
+      <!-- Form Side -->
+      <div class="login-form-side">
+        <form id="loginForm" class="stack">
+          <div class="input-group">
+            <label for="username">User ID</label>
+            <input type="text" id="username" placeholder="e.g. admin" required>
+          </div>
+          <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" id="loginBtn">Unlock Workspace</button>
+        </form>
+        
+        <div id="loginMessage" class="message" style="margin-top: 16px;"></div>
 
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" placeholder="Enter Password" required>
-
-        <button id="loginBtn" type="submit">Secure Login</button>
-      </form>
-
-      <p id="loginMessage" class="message" aria-live="polite"></p>
-
-      <div class="demo-box" style="margin-top: 20px; padding: 15px; border: 1px dashed #ccc; border-radius: 4px; font-size: 13px; color: #555;">
-        <p style="margin-bottom: 5px;"><strong>Demo Users</strong></p>
-        <div>admin / admin123 (admin)</div>
-        <div>manager / manager123 (manager)</div>
-        <div>viewer / viewer123 (viewer)</div>
+        <div class="demo-box">
+          <p><strong>Demo Credentials</strong></p>
+          <div style="font-size: 14px; margin-top: 8px;">
+            <p>admin / admin123</p>
+            <p>manager / manager123</p>
+            <p>viewer / viewer123</p>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   </main>
+
+  <script src="script.js"></script>
 </body>
 </html>
