@@ -1,0 +1,24 @@
+:root{
+  --card-bg: #fff;
+  --muted: #666;
+  --accent: #0b74de;
+}
+body.page-analytics{font-family:Inter, system-ui, Arial, sans-serif; background:var(--bg,#f5f7fb); color:#111}
+.analytics-main{padding:20px; margin-left:200px}
+.topbar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px}
+.top-actions button{margin-left:8px}
+.filters .filter-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:18px}
+.filters label{font-size:14px; color:var(--muted)}
+.metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:18px}
+.metric-card{background:var(--card-bg); border-radius:8px; padding:12px; box-shadow:0 1px 6px rgba(0,0,0,0.04)}
+.metric-card h4{margin:0 0 6px 0; font-size:13px; color:var(--muted)}
+.metric-value{font-size:20px; font-weight:700}
+.charts-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
+.chart-card{background:var(--card-bg); padding:12px; border-radius:8px; min-height:260px}
+.chart-card h4{margin:0 0 8px 0; font-size:14px}
+.no-data{padding:20px; text-align:center; color:var(--muted)}
+
+@media(max-width:800px){
+  .analytics-main{margin-left:0;padding:14px}
+  .topbar{flex-direction:column; align-items:flex-start}
+}
