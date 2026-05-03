@@ -16,20 +16,22 @@
       </svg>
       <h3>Analytics</h3>
     </div>
-    <ul class="sidebar-menu">
-      <li><a href="home.html">Back to Dashboard</a></li>
-      <li><a href="index.html">Sign Out</a></li>
+    <ul class="sidebar-menu" id="sidebarMenuAnalytics">
+      <li><a href="home.html" style="color:inherit; text-decoration:none; display:block; width:100%; height:100%;">← Back to Dashboard</a></li>
+      <li id="logoutBtnAnalytics" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">Logout</li>
     </ul>
   </nav>
 
   <main class="main-content analytics-main">
     <div class="topbar">
-      <h2>Analytics Dashboard</h2>
-      <div class="top-actions">
-        <button id="refreshBtn" class="accent-btn">Refresh Analytics</button>
-        <button id="exportJsonBtn" class="ghost-btn">Export JSON</button>
-        <button id="downloadChartsBtn" class="ghost-btn">Download Charts</button>
-      </div>
+      <h2 id="topbar-title-analytics">Analytics Dashboard</h2>
+      <div><span id="adminNameAnalytics">Admin</span> | Time: <span id="systemTimeAnalytics"></span></div>
+    </div>
+
+    <div class="analytics-controls">
+      <button id="refreshBtn" class="accent-btn">Refresh Analytics</button>
+      <button id="exportJsonBtn" class="ghost-btn">Export JSON</button>
+      <button id="downloadChartsBtn" class="ghost-btn">Download Charts</button>
     </div>
 
     <section class="filters">
@@ -107,6 +109,36 @@
 
   <script src="script.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Update time and user info for analytics page
+    function updateAnalyticsHeader() {
+      const timeEl = document.getElementById('systemTimeAnalytics');
+      if (timeEl) {
+        timeEl.textContent = new Date().toLocaleString('en-IN');
+      }
+      const adminNameEl = document.getElementById('adminNameAnalytics');
+      if (adminNameEl && typeof getCurrentUsername === 'function') {
+        const uname = getCurrentUsername() || 'User';
+        const role = typeof getCurrentRole === 'function' ? getCurrentRole() : localStorage.getItem('currentUserRole') || 'viewer';
+        adminNameEl.textContent = `${uname} (${role})`;
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      updateAnalyticsHeader();
+      setInterval(updateAnalyticsHeader, 1000);
+      
+      // Logout handler
+      const logoutBtn = document.getElementById('logoutBtnAnalytics');
+      if (logoutBtn && typeof logoutAdmin === 'function') {
+        logoutBtn.addEventListener('click', logoutAdmin);
+      }
+      
+      // Check authentication
+      if (typeof isAdminLoggedIn === 'function' && !isAdminLoggedIn()) {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
   <script src="analytics.js" defer></script>
 </body>
 </html>

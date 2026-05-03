@@ -1,13 +1,11 @@
-:root{
-  --card-bg: #fff;
-  --muted: #666;
-  --accent: #0b74de;
-}
-body.page-analytics{font-family:Inter, system-ui, Arial, sans-serif; background:var(--bg,#f5f7fb); color:#111}
 .analytics-main{padding:20px; margin-left:200px}
-.topbar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px}
-.top-actions button{margin-left:8px}
-.filters .filter-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:18px}
+.topbar{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e0e0e0}
+.topbar h2{margin:0; color:#003A8F}
+.topbar div{font-size:13px; color:#666}
+.analytics-controls{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap}
+.analytics-controls button{margin:0}
+.filters{background:#fff; padding:14px; border-radius:6px; margin-bottom:20px; box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.filters .filter-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
 .filters label{font-size:14px; color:var(--muted)}
 .metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:18px}
 .metric-card{background:var(--card-bg); border-radius:8px; padding:12px; box-shadow:0 1px 6px rgba(0,0,0,0.04)}
