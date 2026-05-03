@@ -33,3 +33,4 @@ docker-compose.override.yml
 
 # Personal documentation and testing notes
 docs/devops_testing.txt
+docs/report.txt
