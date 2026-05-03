@@ -13,12 +13,19 @@ pipeline {
         }
 
         stage('Run Test Script') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    reuseNode true
+                }
+            }
             steps {
                 echo '=========================================='
                 echo 'Stage: Run Test Script'
                 echo '=========================================='
                 echo 'Running health check validation...'
                 echo '🚀 Starting CI/CD Validation Process'
+                sh 'node -v'
                 sh 'node tests/test.js'
                 echo 'Test script completed successfully'
             }
