@@ -1,8 +1,9 @@
 pipeline {
-    agent any
-
-    tools {
-        nodejs 'Node 20 LTS'
+    agent {
+        docker {
+            image 'node:20-alpine'
+            reuseNode true
+        }
     }
 
     stages {
