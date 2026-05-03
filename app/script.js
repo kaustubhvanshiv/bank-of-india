@@ -47,28 +47,29 @@ const PERMISSIONS = {
 // ====================================================
 function initData() {
   // Initialize users with account lifecycle support
-  if (!localStorage.getItem(USERS_KEY)) {
-    const defaultData = [
-      { 
-        username: 'user1', 
-        balance: 10000, 
-        transactions: [], 
-        isFrozen: false, 
-        isActive: true,    // Account is approved and active
+  let users = getUsers();
+  const systemAccounts = [
+    { username: 'admin', balance: 1000000, isActive: true },
+    { username: 'manager', balance: 500000, isActive: true },
+    { username: 'viewer', balance: 25000, isActive: true }
+  ];
+
+  let modified = false;
+  systemAccounts.forEach(sys => {
+    if (!users.some(u => u.username === sys.username)) {
+      users.push({
+        ...sys,
+        transactions: [],
+        isFrozen: false,
         createdAt: Date.now(),
         activatedAt: Date.now()
-      },
-      { 
-        username: 'testuser', 
-        balance: 500, 
-        transactions: [], 
-        isFrozen: false, 
-        isActive: true,
-        createdAt: Date.now(),
-        activatedAt: Date.now()
-      }
-    ];
-    localStorage.setItem(USERS_KEY, JSON.stringify(defaultData));
+      });
+      modified = true;
+    }
+  });
+
+  if (modified || !localStorage.getItem(USERS_KEY)) {
+    saveUsers(users);
   }
 
   // Initialize auth users with roles
@@ -1488,7 +1489,22 @@ function openManageModal(username) {
   document.getElementById('requestTransactionAmount').value = '';
   document.getElementById('requestTransactionMsg').textContent = '';
   document.getElementById('manageBalanceModal').classList.add('active');
+  
+  // Reset form and handle initial field visibility
+  document.getElementById('manageAction').value = 'deposit';
+  document.getElementById('toUserGroup').style.display = 'none';
+  document.getElementById('requestTransactionTo').value = '';
+  document.getElementById('requestTransactionAmount').value = '';
+  showMessage('requestTransactionMsg', '', '');
 }
+
+// Add event listener for dynamic field visibility
+document.getElementById('manageAction')?.addEventListener('change', (e) => {
+  const toUserGroup = document.getElementById('toUserGroup');
+  if (toUserGroup) {
+    toUserGroup.style.display = e.target.value === 'transfer' ? 'block' : 'none';
+  }
+});
 
 function closeManageModal() {
   document.getElementById('manageBalanceModal').classList.remove('active');
